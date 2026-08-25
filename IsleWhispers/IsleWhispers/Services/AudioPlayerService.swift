@@ -37,14 +37,23 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private let defaults: UserDefaults
     private let configureSystemIntegration: Bool
     private let resourceBundle: Bundle
+    private let notificationCenter: NotificationCenter
+    private let nowProvider: () -> Date
+    private let shouldObserveSystemNotifications: Bool
     private var sleepTimer: Timer?
-    private var wasPlayingBeforeInterruption = false
+    private var shouldResumeAfterInterruption = false
+    private var ownsPlaybackSession = false
+    private var audioSessionIsActive = false
+    private var systemNotificationObservers: [NSObjectProtocol] = []
     private var remoteCommandRegistrations: [RemoteCommandRegistration] = []
 
     init(
         defaults: UserDefaults = .standard,
         configureSystemIntegration: Bool = true,
-        resourceBundle: Bundle = .main
+        resourceBundle: Bundle = .main,
+        notificationCenter: NotificationCenter = .default,
+        observeSystemNotifications: Bool? = nil,
+        nowProvider: @escaping () -> Date = Date.init
     ) {
         let restoredIndex = defaults.object(forKey: Self.selectedSoundDefaultsKey) as? Int
         let selectedIndex = restoredIndex.flatMap { Sound.catalog.indices.contains($0) ? $0 : nil } ?? 2
@@ -52,22 +61,29 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         self.defaults = defaults
         self.configureSystemIntegration = configureSystemIntegration
         self.resourceBundle = resourceBundle
+        self.notificationCenter = notificationCenter
+        self.shouldObserveSystemNotifications =
+            observeSystemNotifications ?? configureSystemIntegration
+        self.nowProvider = nowProvider
         state = PlaybackState(selectedIndex: selectedIndex, isPlaying: false)
         super.init()
 
         prepareSelectedSound()
 
+        if shouldObserveSystemNotifications {
+            registerSystemNotificationObservers()
+        }
         if configureSystemIntegration {
             configureAudioSession()
-            observeSystemNotifications()
             registerRemoteCommands()
-            updateNowPlayingInfo()
         }
     }
 
     deinit {
         sleepTimer?.invalidate()
-        NotificationCenter.default.removeObserver(self)
+        for observer in systemNotificationObservers {
+            notificationCenter.removeObserver(observer)
+        }
         for registration in remoteCommandRegistrations {
             registration.command.removeTarget(registration.target)
         }
@@ -87,36 +103,53 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     func play() {
+        _ = attemptPlay()
+    }
+
+    @discardableResult
+    private func attemptPlay(preservingInterruptionIntent: Bool = false) -> Bool {
+        if !preservingInterruptionIntent {
+            shouldResumeAfterInterruption = false
+        }
+        guard !expireSleepTimerIfNeeded() else { return false }
+
         if player == nil {
             prepareSelectedSound()
         }
 
         guard let player else {
             state.isPlaying = false
+            releaseSystemPlaybackOwnership()
             publishState()
-            return
+            return false
         }
 
         if configureSystemIntegration {
             do {
                 try AVAudioSession.sharedInstance().setActive(true)
+                audioSessionIsActive = true
             } catch {
                 state.isPlaying = false
                 statusMessage = "音频会话不可用"
+                releaseSystemPlaybackOwnership()
                 publishState()
-                return
+                return false
             }
         }
 
         state.isPlaying = player.play()
         statusMessage = state.isPlaying ? "准备就绪" : "音频播放失败"
+        if state.isPlaying {
+            ownsPlaybackSession = true
+        } else {
+            releaseSystemPlaybackOwnership()
+        }
         publishState()
+        return state.isPlaying
     }
 
     func pause() {
-        player?.pause()
-        state.isPlaying = false
-        publishState()
+        stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
     }
 
     func previous() {
@@ -166,7 +199,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     func setSleepTimer(_ option: SleepTimerOption) {
         sleepTimer?.invalidate()
 
-        let now = Date()
+        let now = nowProvider()
         sleepTimerState.schedule(option, now: now)
         if let deadline = sleepTimerState.deadline {
             armSleepTimer(after: deadline.timeIntervalSince(now))
@@ -177,10 +210,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     func reconcileSleepTimer() {
         sleepTimer?.invalidate()
 
-        let now = Date()
+        let now = nowProvider()
         if sleepTimerState.isExpired(at: now) {
             sleepTimerState.schedule(.unlimited, now: now)
-            pause()
+            stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
         } else if let deadline = sleepTimerState.deadline {
             armSleepTimer(after: deadline.timeIntervalSince(now))
         }
@@ -190,6 +223,8 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         self.player = nil
         state.isPlaying = false
         statusMessage = "音频解码失败"
+        shouldResumeAfterInterruption = false
+        releaseSystemPlaybackOwnership()
         publishState()
     }
 
@@ -254,26 +289,40 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    private func observeSystemNotifications() {
-        let center = NotificationCenter.default
-        center.addObserver(
-            self,
-            selector: #selector(handleDidBecomeActive),
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
-        )
-        center.addObserver(
-            self,
-            selector: #selector(handleAudioSessionInterruption(_:)),
-            name: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        center.addObserver(
-            self,
-            selector: #selector(handleAudioRouteChange(_:)),
-            name: AVAudioSession.routeChangeNotification,
-            object: AVAudioSession.sharedInstance()
-        )
+    private func registerSystemNotificationObservers() {
+        let notificationObject: Any? = configureSystemIntegration
+            ? AVAudioSession.sharedInstance()
+            : nil
+        systemNotificationObservers.append(notificationCenter.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.reconcileSleepTimer()
+            }
+        })
+        systemNotificationObservers.append(notificationCenter.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: notificationObject,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.handleAudioSessionInterruption(notification)
+            }
+        })
+        systemNotificationObservers.append(notificationCenter.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: notificationObject,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.handleAudioRouteChange(notification)
+            }
+        })
     }
 
     private func registerRemoteCommands() {
@@ -294,10 +343,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     private func publishState() {
-        if configureSystemIntegration {
+        if configureSystemIntegration, ownsPlaybackSession {
             updateNowPlayingInfo()
         }
-        NotificationCenter.default.post(name: .audioPlayerStateDidChange, object: self)
+        notificationCenter.post(name: .audioPlayerStateDidChange, object: self)
     }
 
     private func updateNowPlayingInfo() {
@@ -308,15 +357,11 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         ]
     }
 
-    @objc private func handleDidBecomeActive() {
-        reconcileSleepTimer()
-    }
-
     @objc private func handleSleepTimerFired() {
         reconcileSleepTimer()
     }
 
-    @objc private func handleAudioSessionInterruption(_ notification: Notification) {
+    func handleAudioSessionInterruption(_ notification: Notification) {
         guard
             let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
             let type = AVAudioSession.InterruptionType(rawValue: rawType)
@@ -324,26 +369,75 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
         switch type {
         case .began:
-            wasPlayingBeforeInterruption = isPlaying
-            pause()
+            shouldResumeAfterInterruption = isPlaying
+            stopPlayback(
+                releasingSystemOwnership: false,
+                cancellingInterruptionResume: false
+            )
         case .ended:
             let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-            if wasPlayingBeforeInterruption, options.contains(.shouldResume) {
-                play()
+            let shouldResume = shouldResumeAfterInterruption && options.contains(.shouldResume)
+            guard !expireSleepTimerIfNeeded() else { return }
+            shouldResumeAfterInterruption = false
+            if shouldResume {
+                _ = attemptPlay(preservingInterruptionIntent: true)
             }
-            wasPlayingBeforeInterruption = false
         @unknown default:
             break
         }
     }
 
-    @objc private func handleAudioRouteChange(_ notification: Notification) {
+    func handleAudioRouteChange(_ notification: Notification) {
         guard
             let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
             AVAudioSession.RouteChangeReason(rawValue: rawReason) == .oldDeviceUnavailable
         else { return }
 
-        pause()
+        stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
+    }
+
+    @discardableResult
+    private func expireSleepTimerIfNeeded() -> Bool {
+        let now = nowProvider()
+        guard sleepTimerState.isExpired(at: now) else { return false }
+
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        sleepTimerState.schedule(.unlimited, now: now)
+        stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
+        return true
+    }
+
+    private func stopPlayback(
+        releasingSystemOwnership: Bool,
+        cancellingInterruptionResume: Bool
+    ) {
+        player?.pause()
+        state.isPlaying = false
+        if cancellingInterruptionResume {
+            shouldResumeAfterInterruption = false
+        }
+        if releasingSystemOwnership {
+            releaseSystemPlaybackOwnership()
+        }
+        publishState()
+    }
+
+    private func releaseSystemPlaybackOwnership() {
+        ownsPlaybackSession = false
+        guard configureSystemIntegration else { return }
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        guard audioSessionIsActive else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(
+                false,
+                options: .notifyOthersOnDeactivation
+            )
+        } catch {
+            // A system interruption can already have deactivated the session.
+        }
+        audioSessionIsActive = false
     }
 }

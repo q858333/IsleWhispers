@@ -1,6 +1,7 @@
 import XCTest
 @testable import IsleWhispers
 
+@MainActor
 final class PlaybackStateTests: XCTestCase {
     func testNextAndPreviousWrapAroundCatalog() {
         var state = PlaybackState(selectedIndex: 14, isPlaying: false)
