@@ -6,8 +6,21 @@ extension Notification.Name {
     static let audioPlayerStateDidChange = Notification.Name("audioPlayerStateDidChange")
 }
 
+enum AudioPlayerRemoteCommand: Sendable {
+    case play
+    case pause
+    case togglePlayback
+    case previous
+    case next
+}
+
 @MainActor
 final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
+    private nonisolated struct RemoteCommandRegistration {
+        let command: MPRemoteCommand
+        let target: Any
+    }
+
     static let shared = AudioPlayerService()
     static let selectedSoundDefaultsKey = "selectedSoundIndex"
 
@@ -23,18 +36,22 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
     private let defaults: UserDefaults
     private let configureSystemIntegration: Bool
+    private let resourceBundle: Bundle
     private var sleepTimer: Timer?
     private var wasPlayingBeforeInterruption = false
+    private var remoteCommandRegistrations: [RemoteCommandRegistration] = []
 
     init(
         defaults: UserDefaults = .standard,
-        configureSystemIntegration: Bool = true
+        configureSystemIntegration: Bool = true,
+        resourceBundle: Bundle = .main
     ) {
         let restoredIndex = defaults.object(forKey: Self.selectedSoundDefaultsKey) as? Int
         let selectedIndex = restoredIndex.flatMap { Sound.catalog.indices.contains($0) ? $0 : nil } ?? 2
 
         self.defaults = defaults
         self.configureSystemIntegration = configureSystemIntegration
+        self.resourceBundle = resourceBundle
         state = PlaybackState(selectedIndex: selectedIndex, isPlaying: false)
         super.init()
 
@@ -45,6 +62,14 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             observeSystemNotifications()
             registerRemoteCommands()
             updateNowPlayingInfo()
+        }
+    }
+
+    deinit {
+        sleepTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+        for registration in remoteCommandRegistrations {
+            registration.command.removeTarget(registration.target)
         }
     }
 
@@ -107,6 +132,37 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         publishState()
     }
 
+    func performRemoteCommand(_ command: AudioPlayerRemoteCommand) -> MPRemoteCommandHandlerStatus {
+        switch command {
+        case .play:
+            play()
+            return playbackCommandStatus()
+        case .pause:
+            pause()
+            return .success
+        case .togglePlayback:
+            let shouldPlay = !isPlaying
+            togglePlayback()
+            return shouldPlay ? playbackCommandStatus() : .success
+        case .previous:
+            return performSelectionCommand(previous)
+        case .next:
+            return performSelectionCommand(next)
+        }
+    }
+
+    nonisolated func handleRemoteCommand(_ command: AudioPlayerRemoteCommand) -> MPRemoteCommandHandlerStatus {
+        if Thread.isMainThread {
+            return MainActor.assumeIsolated {
+                performRemoteCommand(command)
+            }
+        }
+
+        return DispatchQueue.main.sync {
+            performRemoteCommand(command)
+        }
+    }
+
     func setSleepTimer(_ option: SleepTimerOption) {
         sleepTimer?.invalidate()
 
@@ -142,11 +198,11 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         player = nil
         state.isPlaying = false
 
-        let url = Bundle.main.url(
+        let url = resourceBundle.url(
             forResource: currentSound.audioResource,
             withExtension: "caf",
             subdirectory: "Audio"
-        ) ?? Bundle.main.url(forResource: currentSound.audioResource, withExtension: "caf")
+        ) ?? resourceBundle.url(forResource: currentSound.audioResource, withExtension: "caf")
 
         guard let url else {
             statusMessage = "音频资源不可用"
@@ -166,6 +222,18 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         } catch {
             statusMessage = "音频解码失败"
         }
+    }
+
+    private func performSelectionCommand(_ action: () -> Void) -> MPRemoteCommandHandlerStatus {
+        let shouldContinuePlaying = isPlaying
+        action()
+        guard player != nil else { return .noSuchContent }
+        return shouldContinuePlaying && !isPlaying ? .commandFailed : .success
+    }
+
+    private func playbackCommandStatus() -> MPRemoteCommandHandlerStatus {
+        guard player != nil else { return .noSuchContent }
+        return isPlaying ? .success : .commandFailed
     }
 
     private func armSleepTimer(after interval: TimeInterval) {
@@ -210,33 +278,19 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
     private func registerRemoteCommands() {
         let commandCenter = MPRemoteCommandCenter.shared()
-        commandCenter.playCommand.addTarget { [weak self] _ in
-            self?.performOnMainActor { $0.play() }
-            return .success
-        }
-        commandCenter.pauseCommand.addTarget { [weak self] _ in
-            self?.performOnMainActor { $0.pause() }
-            return .success
-        }
-        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-            self?.performOnMainActor { $0.togglePlayback() }
-            return .success
-        }
-        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
-            self?.performOnMainActor { $0.previous() }
-            return .success
-        }
-        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
-            self?.performOnMainActor { $0.next() }
-            return .success
-        }
+        register(commandCenter.playCommand, action: .play)
+        register(commandCenter.pauseCommand, action: .pause)
+        register(commandCenter.togglePlayPauseCommand, action: .togglePlayback)
+        register(commandCenter.previousTrackCommand, action: .previous)
+        register(commandCenter.nextTrackCommand, action: .next)
     }
 
-    nonisolated private func performOnMainActor(_ action: @escaping @MainActor (AudioPlayerService) -> Void) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            action(self)
+    private func register(_ command: MPRemoteCommand, action: AudioPlayerRemoteCommand) {
+        let target = command.addTarget { [weak self] _ in
+            guard let self else { return .commandFailed }
+            return self.handleRemoteCommand(action)
         }
+        remoteCommandRegistrations.append(.init(command: command, target: target))
     }
 
     private func publishState() {
