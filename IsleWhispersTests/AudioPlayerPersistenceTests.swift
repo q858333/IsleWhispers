@@ -4,6 +4,32 @@ import XCTest
 
 final class AudioPlayerPersistenceTests: XCTestCase {
     @MainActor
+    func testInterruptionEndingWithoutShouldResumeReleasesSystemPlaybackOwnership() throws {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        defer {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            defaults.removePersistentDomain(forName: suite)
+        }
+
+        let service = AudioPlayerService(defaults: defaults, configureSystemIntegration: true)
+        service.play()
+        XCTAssertTrue(service.isPlaying)
+        XCTAssertTrue(service.ownsPlaybackSession)
+        XCTAssertTrue(service.audioSessionIsActive)
+        XCTAssertNotNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+
+        service.handleAudioSessionInterruption(interruption(.began))
+        service.handleAudioSessionInterruption(interruption(.ended))
+
+        XCTAssertFalse(service.isPlaying)
+        XCTAssertFalse(service.ownsPlaybackSession)
+        XCTAssertFalse(service.audioSessionIsActive)
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+    }
+
+    @MainActor
     func testRouteChangePostedFromBackgroundStopsPlaybackOnMainActor() async {
         let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

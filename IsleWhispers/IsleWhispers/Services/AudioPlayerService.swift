@@ -42,8 +42,8 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private let shouldObserveSystemNotifications: Bool
     private var sleepTimer: Timer?
     private var shouldResumeAfterInterruption = false
-    private var ownsPlaybackSession = false
-    private var audioSessionIsActive = false
+    private(set) var ownsPlaybackSession = false
+    private(set) var audioSessionIsActive = false
     private var systemNotificationObservers: [NSObjectProtocol] = []
     private var remoteCommandRegistrations: [RemoteCommandRegistration] = []
 
@@ -382,6 +382,8 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             shouldResumeAfterInterruption = false
             if shouldResume {
                 _ = attemptPlay(preservingInterruptionIntent: true)
+            } else {
+                releaseSystemPlaybackOwnership()
             }
         @unknown default:
             break
