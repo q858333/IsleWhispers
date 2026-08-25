@@ -1,6 +1,36 @@
 import SnapKit
 import UIKit
 
+private final class ContentSizedCollectionView: UICollectionView {
+    var usesIntrinsicContentHeight = false {
+        didSet {
+            guard usesIntrinsicContentHeight != oldValue else { return }
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    override var contentSize: CGSize {
+        didSet {
+            guard usesIntrinsicContentHeight, contentSize != oldValue else { return }
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    override var intrinsicContentSize: CGSize {
+        guard usesIntrinsicContentHeight else { return super.intrinsicContentSize }
+        return CGSize(
+            width: UIView.noIntrinsicMetric,
+            height: max(collectionViewLayout.collectionViewContentSize.height, 1)
+        )
+    }
+
+    func invalidateSelfSizingLayout() {
+        collectionViewLayout.invalidateLayout()
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+}
+
 final class PlayerViewController: UIViewController {
     private enum LayoutMode {
         case compact
@@ -9,10 +39,17 @@ final class PlayerViewController: UIViewController {
 
     private static let regularWidthThreshold: CGFloat = 720
     private static let readyStatus = "准备就绪"
+    private static let immersiveAccentForeground = UIColor(
+        red: 0.035,
+        green: 0.105,
+        blue: 0.145,
+        alpha: 1
+    )
 
     private let playerService: AudioPlayerService
     private var layoutMode: LayoutMode?
     private var layoutRootView: UIView?
+    private var adaptiveConstraints: [Constraint] = []
     private weak var compactScrollView: UIScrollView?
     private var renderedBackgroundResource: String?
 
@@ -39,8 +76,8 @@ final class PlayerViewController: UIViewController {
     private let sleepTimerView = SleepTimerView()
     private let soundsTitleLabel = UILabel()
 
-    private lazy var soundsCollectionView: UICollectionView = {
-        let collectionView = UICollectionView(
+    private lazy var soundsCollectionView: ContentSizedCollectionView = {
+        let collectionView = ContentSizedCollectionView(
             frame: .zero,
             collectionViewLayout: makeCollectionLayout(for: .compact)
         )
@@ -70,6 +107,7 @@ final class PlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        overrideUserInterfaceStyle = .dark
         setupBackground()
         setupNavigationBar()
         setupHeroPanel()
@@ -98,6 +136,23 @@ final class PlayerViewController: UIViewController {
             : .compact
         guard nextMode != layoutMode else { return }
         rebuildLayout(for: nextMode)
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard
+            previousTraitCollection?.preferredContentSizeCategory
+                != traitCollection.preferredContentSizeCategory
+        else { return }
+
+        refreshForContentSizeCategory()
+    }
+
+    private func refreshForContentSizeCategory() {
+        soundsCollectionView.visibleCells.forEach(styleImmersiveSoundCell)
+        soundsCollectionView.reloadData()
+        soundsCollectionView.invalidateSelfSizingLayout()
+        applyImmersiveControlColors()
     }
 
     private func setupBackground() {
@@ -169,6 +224,9 @@ final class PlayerViewController: UIViewController {
         }
         timerShortcutButton.snp.makeConstraints { make in
             make.height.greaterThanOrEqualTo(44)
+        }
+        navigationBar.snp.makeConstraints { make in
+            make.height.equalTo(48)
         }
     }
 
@@ -296,6 +354,12 @@ final class PlayerViewController: UIViewController {
             name: .audioPlayerStateDidChange,
             object: playerService
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleContentSizeCategoryDidChange),
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
     }
 
     private func rebuildLayout(for mode: LayoutMode) {
@@ -304,7 +368,7 @@ final class PlayerViewController: UIViewController {
         let rootView = UIView()
         view.addSubview(rootView)
         rootView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+            adaptiveConstraints.append(make.edges.equalToSuperview().constraint)
         }
         layoutRootView = rootView
 
@@ -313,6 +377,11 @@ final class PlayerViewController: UIViewController {
             animated: false
         )
         soundsCollectionView.isScrollEnabled = mode == .regular
+        soundsCollectionView.usesIntrinsicContentHeight = mode == .compact
+        soundsCollectionView.setContentCompressionResistancePriority(
+            mode == .compact ? .required : .defaultHigh,
+            for: .vertical
+        )
 
         switch mode {
         case .compact:
@@ -324,9 +393,12 @@ final class PlayerViewController: UIViewController {
         timerShortcutButton.isHidden = mode == .regular
         layoutMode = mode
         soundsCollectionView.reloadData()
+        soundsCollectionView.invalidateSelfSizingLayout()
     }
 
     private func detachAdaptiveViews() {
+        adaptiveConstraints.forEach { $0.deactivate() }
+        adaptiveConstraints.removeAll()
         navigationBar.removeFromSuperview()
         heroPanel.removeFromSuperview()
         timerSectionView.removeFromSuperview()
@@ -343,7 +415,7 @@ final class PlayerViewController: UIViewController {
         scrollView.showsVerticalScrollIndicator = false
         rootView.addSubview(scrollView)
         scrollView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+            adaptiveConstraints.append(make.edges.equalToSuperview().constraint)
         }
         compactScrollView = scrollView
 
@@ -364,18 +436,18 @@ final class PlayerViewController: UIViewController {
         scrollView.addSubview(contentStack)
 
         contentStack.snp.makeConstraints { make in
-            make.top.equalTo(scrollView.contentLayoutGuide).offset(16)
-            make.leading.trailing.equalTo(scrollView.frameLayoutGuide).inset(20)
-            make.bottom.equalTo(scrollView.contentLayoutGuide).inset(32)
-        }
-        navigationBar.snp.makeConstraints { make in
-            make.height.equalTo(48)
+            adaptiveConstraints.append(
+                make.top.equalTo(scrollView.contentLayoutGuide).offset(16).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.trailing.equalTo(scrollView.frameLayoutGuide).inset(20).constraint
+            )
+            adaptiveConstraints.append(
+                make.bottom.equalTo(scrollView.contentLayoutGuide).inset(32).constraint
+            )
         }
         heroPanel.snp.makeConstraints { make in
-            make.height.greaterThanOrEqualTo(548)
-        }
-        soundsCollectionView.snp.makeConstraints { make in
-            make.height.equalTo(compactCollectionHeight)
+            adaptiveConstraints.append(make.height.greaterThanOrEqualTo(548).constraint)
         }
     }
 
@@ -394,57 +466,80 @@ final class PlayerViewController: UIViewController {
         sidebarView.addSubview(soundsCollectionView)
 
         sidebarView.snp.makeConstraints { make in
-            make.top.bottom.equalTo(rootView.safeAreaLayoutGuide).inset(16)
-            make.trailing.equalTo(rootView.safeAreaLayoutGuide).inset(24)
-            make.width.equalTo(300)
+            adaptiveConstraints.append(
+                make.top.bottom.equalTo(rootView.safeAreaLayoutGuide).inset(16).constraint
+            )
+            adaptiveConstraints.append(
+                make.trailing.equalTo(rootView.safeAreaLayoutGuide).inset(24).constraint
+            )
+            adaptiveConstraints.append(make.width.equalTo(300).constraint)
         }
         navigationBar.snp.makeConstraints { make in
-            make.top.equalTo(rootView.safeAreaLayoutGuide).offset(16)
-            make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24)
-            make.trailing.equalTo(sidebarView.snp.leading).offset(-24)
-            make.height.equalTo(48)
+            adaptiveConstraints.append(
+                make.top.equalTo(rootView.safeAreaLayoutGuide).offset(16).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24).constraint
+            )
+            adaptiveConstraints.append(
+                make.trailing.equalTo(sidebarView.snp.leading).offset(-24).constraint
+            )
         }
         heroPanel.snp.makeConstraints { make in
-            make.top.equalTo(navigationBar.snp.bottom).offset(16)
-            make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24)
-            make.trailing.equalTo(sidebarView.snp.leading).offset(-24)
-            make.bottom.equalTo(rootView.safeAreaLayoutGuide).inset(16)
+            adaptiveConstraints.append(
+                make.top.equalTo(navigationBar.snp.bottom).offset(16).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24).constraint
+            )
+            adaptiveConstraints.append(
+                make.trailing.equalTo(sidebarView.snp.leading).offset(-24).constraint
+            )
+            adaptiveConstraints.append(
+                make.bottom.equalTo(rootView.safeAreaLayoutGuide).inset(16).constraint
+            )
         }
         timerSectionView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview().inset(16)
+            adaptiveConstraints.append(
+                make.top.leading.trailing.equalToSuperview().inset(16).constraint
+            )
         }
         soundsTitleLabel.snp.makeConstraints { make in
-            make.top.equalTo(timerSectionView.snp.bottom).offset(24)
-            make.leading.trailing.equalToSuperview().inset(18)
+            adaptiveConstraints.append(
+                make.top.equalTo(timerSectionView.snp.bottom).offset(24).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.trailing.equalToSuperview().inset(18).constraint
+            )
         }
         soundsCollectionView.snp.makeConstraints { make in
-            make.top.equalTo(soundsTitleLabel.snp.bottom).offset(12)
-            make.leading.trailing.bottom.equalToSuperview().inset(12)
+            adaptiveConstraints.append(
+                make.top.equalTo(soundsTitleLabel.snp.bottom).offset(12).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.trailing.bottom.equalToSuperview().inset(12).constraint
+            )
         }
     }
 
     private func makeCollectionLayout(for mode: LayoutMode) -> UICollectionViewLayout {
+        let estimatedHeight: CGFloat = mode == .compact ? 96 : 64
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
-            heightDimension: .fractionalHeight(1)
+            heightDimension: .estimated(estimatedHeight)
         )
         let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
-        let groupSize: NSCollectionLayoutSize
+        let groupSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1),
+            heightDimension: .estimated(estimatedHeight)
+        )
         let group: NSCollectionLayoutGroup
         switch mode {
         case .compact:
-            groupSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1),
-                heightDimension: .absolute(96)
-            )
             group = .horizontal(layoutSize: groupSize, subitem: item, count: 3)
             group.interItemSpacing = .fixed(12)
         case .regular:
-            groupSize = NSCollectionLayoutSize(
-                widthDimension: .fractionalWidth(1),
-                heightDimension: .absolute(64)
-            )
             group = .horizontal(layoutSize: groupSize, subitems: [item])
         }
 
@@ -453,17 +548,13 @@ final class PlayerViewController: UIViewController {
         return UICollectionViewCompositionalLayout(section: section)
     }
 
-    private var compactCollectionHeight: CGFloat {
-        let rowCount = ceil(CGFloat(Sound.catalog.count) / 3)
-        return rowCount * 96 + max(rowCount - 1, 0) * 12
-    }
-
     private func render() {
         let sound = playerService.currentSound
         titleLabel.text = sound.title
         subtitleLabel.text = sound.subtitle
         controlsView.configure(isPlaying: playerService.isPlaying)
         sleepTimerView.configure(selected: playerService.sleepTimerOption)
+        applyImmersiveControlColors()
 
         let status = playerService.statusMessage
         let hasError = status != Self.readyStatus
@@ -475,6 +566,38 @@ final class PlayerViewController: UIViewController {
 
         updateBackground(for: sound)
         soundsCollectionView.reloadData()
+    }
+
+    private func applyImmersiveControlColors() {
+        buttons(in: controlsView).forEach(styleImmersiveButton)
+        buttons(in: sleepTimerView).forEach(styleImmersiveButton)
+    }
+
+    private func buttons(in rootView: UIView) -> [UIButton] {
+        rootView.subviews.flatMap { subview -> [UIButton] in
+            let button = subview as? UIButton
+            return (button.map { [$0] } ?? []) + buttons(in: subview)
+        }
+    }
+
+    private func labels(in rootView: UIView) -> [UILabel] {
+        rootView.subviews.flatMap { subview -> [UILabel] in
+            let label = subview as? UILabel
+            return (label.map { [$0] } ?? []) + labels(in: subview)
+        }
+    }
+
+    private func styleImmersiveButton(_ button: UIButton) {
+        let usesAccentBackground = button.backgroundColor?.isEqual(AppTheme.accent) == true
+        let foreground = usesAccentBackground ? Self.immersiveAccentForeground : UIColor.white
+        button.tintColor = foreground
+        button.setTitleColor(foreground, for: .normal)
+    }
+
+    private func styleImmersiveSoundCell(_ cell: UICollectionViewCell) {
+        for label in labels(in: cell.contentView) {
+            label.textColor = .white
+        }
     }
 
     private func updateBackground(for sound: Sound) {
@@ -502,6 +625,10 @@ final class PlayerViewController: UIViewController {
 
     @objc private func handlePlayerStateDidChange() {
         render()
+    }
+
+    @objc private func handleContentSizeCategoryDidChange() {
+        refreshForContentSizeCategory()
     }
 
     @objc private func didTapBack() {
@@ -544,6 +671,7 @@ extension PlayerViewController: UICollectionViewDataSource, UICollectionViewDele
             sound: Sound.catalog[indexPath.item],
             selected: indexPath.item == playerService.selectedIndex
         )
+        styleImmersiveSoundCell(cell)
         return cell
     }
 
