@@ -39,13 +39,6 @@ final class PlayerViewController: UIViewController {
 
     private static let regularWidthThreshold: CGFloat = 720
     private static let readyStatus = "准备就绪"
-    private static let immersiveAccentForeground = UIColor(
-        red: 0.035,
-        green: 0.105,
-        blue: 0.145,
-        alpha: 1
-    )
-
     private let playerService: AudioPlayerService
     private var layoutMode: LayoutMode?
     private var layoutRootView: UIView?
@@ -208,10 +201,17 @@ final class PlayerViewController: UIViewController {
 
         timerShortcutButton.backgroundColor = UIColor.black.withAlphaComponent(0.28)
         timerShortcutButton.tintColor = .white
+        var timerConfiguration = UIButton.Configuration.plain()
+        timerConfiguration.contentInsets = NSDirectionalEdgeInsets(
+            top: 10,
+            leading: 16,
+            bottom: 10,
+            trailing: 16
+        )
+        timerShortcutButton.configuration = timerConfiguration
         timerShortcutButton.setTitle("睡眠定时", for: .normal)
         timerShortcutButton.titleLabel?.font = AppTheme.font(.subheadline, weight: .semibold)
         timerShortcutButton.titleLabel?.adjustsFontForContentSizeCategory = true
-        timerShortcutButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
         timerShortcutButton.applyRoundedCorners(radius: 22)
         timerShortcutButton.accessibilityHint = "滚动到睡眠定时选项"
 
@@ -261,12 +261,19 @@ final class PlayerViewController: UIViewController {
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
 
+        var retryConfiguration = UIButton.Configuration.plain()
+        retryConfiguration.contentInsets = NSDirectionalEdgeInsets(
+            top: 8,
+            leading: 14,
+            bottom: 8,
+            trailing: 14
+        )
+        retryButton.configuration = retryConfiguration
         retryButton.setTitle("重试", for: .normal)
         retryButton.titleLabel?.font = AppTheme.font(.footnote, weight: .semibold)
         retryButton.titleLabel?.adjustsFontForContentSizeCategory = true
         retryButton.tintColor = .white
         retryButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.82)
-        retryButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
         retryButton.applyRoundedCorners(radius: 17)
         retryButton.accessibilityHint = "重新载入当前声音"
 
@@ -458,12 +465,31 @@ final class PlayerViewController: UIViewController {
         sidebarView.layer.borderWidth = 1
         sidebarView.layer.borderColor = UIColor.white.withAlphaComponent(0.14).cgColor
 
-        rootView.addSubview(navigationBar)
-        rootView.addSubview(heroPanel)
+        let mainScrollView = UIScrollView()
+        mainScrollView.alwaysBounceVertical = true
+        mainScrollView.showsVerticalScrollIndicator = false
+
+        rootView.addSubview(mainScrollView)
         rootView.addSubview(sidebarView)
-        sidebarView.addSubview(timerSectionView)
-        sidebarView.addSubview(soundsTitleLabel)
-        sidebarView.addSubview(soundsCollectionView)
+
+        let mainStack = UIStackView(arrangedSubviews: [navigationBar, heroPanel])
+        mainStack.axis = .vertical
+        mainStack.spacing = 16
+        mainScrollView.addSubview(mainStack)
+
+        soundsCollectionView.isScrollEnabled = false
+        soundsCollectionView.usesIntrinsicContentHeight = true
+        let sidebarScrollView = UIScrollView()
+        sidebarScrollView.alwaysBounceVertical = true
+        sidebarScrollView.showsVerticalScrollIndicator = false
+        sidebarView.addSubview(sidebarScrollView)
+        let sidebarStack = UIStackView(
+            arrangedSubviews: [timerSectionView, soundsTitleLabel, soundsCollectionView]
+        )
+        sidebarStack.axis = .vertical
+        sidebarStack.spacing = 12
+        sidebarStack.setCustomSpacing(24, after: timerSectionView)
+        sidebarScrollView.addSubview(sidebarStack)
 
         sidebarView.snp.makeConstraints { make in
             adaptiveConstraints.append(
@@ -474,50 +500,42 @@ final class PlayerViewController: UIViewController {
             )
             adaptiveConstraints.append(make.width.equalTo(300).constraint)
         }
-        navigationBar.snp.makeConstraints { make in
+        mainScrollView.snp.makeConstraints { make in
             adaptiveConstraints.append(
-                make.top.equalTo(rootView.safeAreaLayoutGuide).offset(16).constraint
+                make.top.bottom.equalTo(rootView.safeAreaLayoutGuide).constraint
             )
             adaptiveConstraints.append(
                 make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24).constraint
             )
             adaptiveConstraints.append(
                 make.trailing.equalTo(sidebarView.snp.leading).offset(-24).constraint
+            )
+        }
+        mainStack.snp.makeConstraints { make in
+            adaptiveConstraints.append(
+                make.top.equalTo(mainScrollView.contentLayoutGuide).offset(16).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.trailing.equalTo(mainScrollView.frameLayoutGuide).constraint
+            )
+            adaptiveConstraints.append(
+                make.bottom.equalTo(mainScrollView.contentLayoutGuide).inset(16).constraint
             )
         }
         heroPanel.snp.makeConstraints { make in
+            adaptiveConstraints.append(make.height.greaterThanOrEqualTo(500).constraint)
+        }
+        sidebarScrollView.snp.makeConstraints { make in
             adaptiveConstraints.append(
-                make.top.equalTo(navigationBar.snp.bottom).offset(16).constraint
-            )
-            adaptiveConstraints.append(
-                make.leading.equalTo(rootView.safeAreaLayoutGuide).offset(24).constraint
-            )
-            adaptiveConstraints.append(
-                make.trailing.equalTo(sidebarView.snp.leading).offset(-24).constraint
-            )
-            adaptiveConstraints.append(
-                make.bottom.equalTo(rootView.safeAreaLayoutGuide).inset(16).constraint
+                make.edges.equalToSuperview().inset(12).constraint
             )
         }
-        timerSectionView.snp.makeConstraints { make in
+        sidebarStack.snp.makeConstraints { make in
             adaptiveConstraints.append(
-                make.top.leading.trailing.equalToSuperview().inset(16).constraint
-            )
-        }
-        soundsTitleLabel.snp.makeConstraints { make in
-            adaptiveConstraints.append(
-                make.top.equalTo(timerSectionView.snp.bottom).offset(24).constraint
+                make.top.bottom.equalTo(sidebarScrollView.contentLayoutGuide).constraint
             )
             adaptiveConstraints.append(
-                make.leading.trailing.equalToSuperview().inset(18).constraint
-            )
-        }
-        soundsCollectionView.snp.makeConstraints { make in
-            adaptiveConstraints.append(
-                make.top.equalTo(soundsTitleLabel.snp.bottom).offset(12).constraint
-            )
-            adaptiveConstraints.append(
-                make.leading.trailing.bottom.equalToSuperview().inset(12).constraint
+                make.leading.trailing.equalTo(sidebarScrollView.frameLayoutGuide).constraint
             )
         }
     }
@@ -589,7 +607,7 @@ final class PlayerViewController: UIViewController {
 
     private func styleImmersiveButton(_ button: UIButton) {
         let usesAccentBackground = button.backgroundColor?.isEqual(AppTheme.accent) == true
-        let foreground = usesAccentBackground ? Self.immersiveAccentForeground : UIColor.white
+        let foreground = usesAccentBackground ? AppTheme.accentForeground : UIColor.white
         button.tintColor = foreground
         button.setTitleColor(foreground, for: .normal)
     }

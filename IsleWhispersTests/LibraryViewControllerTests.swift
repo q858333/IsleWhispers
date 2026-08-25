@@ -4,6 +4,42 @@ import XCTest
 
 final class LibraryViewControllerTests: XCTestCase {
     @MainActor
+    func testAccentBackedLibraryControlsMeetContrastInLightAndDark() throws {
+        let (controller, _, cleanup) = makeController()
+        defer { cleanup() }
+        let host = UIViewController()
+        host.addChild(controller)
+        host.view.addSubview(controller.view)
+        controller.didMove(toParent: host)
+        layout(controller: controller, host: host, size: CGSize(width: 720, height: 900))
+
+        let accentButtons = [
+            try XCTUnwrap(button(labelled: "播放", in: controller.view)),
+            try XCTUnwrap(button(labelled: "睡眠定时：不限", in: controller.view))
+        ]
+        for button in accentButtons {
+            XCTAssertTrue(button.backgroundColor?.isEqual(AppTheme.accent) == true)
+        }
+
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            let background = AppTheme.accent.resolvedColor(with: traits)
+            for button in accentButtons {
+                let foreground: UIColor
+                if button.currentImage == nil {
+                    foreground = try XCTUnwrap(button.titleColor(for: .normal))
+                } else {
+                    foreground = try XCTUnwrap(button.tintColor)
+                }
+                XCTAssertGreaterThanOrEqual(
+                    contrastRatio(foreground.resolvedColor(with: traits), background),
+                    4.5
+                )
+            }
+        }
+    }
+
+    @MainActor
     func testLayoutSwitchesFromThreeColumnsToOneColumnAtRegularWidth() throws {
         let (controller, _, cleanup) = makeController()
         defer { cleanup() }
@@ -247,5 +283,26 @@ final class LibraryViewControllerTests: XCTestCase {
 
     private func descendants(in root: UIView) -> [UIView] {
         [root] + root.subviews.flatMap(descendants(in:))
+    }
+
+    private func contrastRatio(_ foreground: UIColor, _ background: UIColor) -> CGFloat {
+        let lighter = max(relativeLuminance(foreground), relativeLuminance(background))
+        let darker = min(relativeLuminance(foreground), relativeLuminance(background))
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private func relativeLuminance(_ color: UIColor) -> CGFloat {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return 0.2126 * linearized(red) + 0.7152 * linearized(green) + 0.0722 * linearized(blue)
+    }
+
+    private func linearized(_ component: CGFloat) -> CGFloat {
+        component <= 0.04045
+            ? component / 12.92
+            : pow((component + 0.055) / 1.055, 2.4)
     }
 }

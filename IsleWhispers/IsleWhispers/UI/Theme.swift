@@ -14,6 +14,12 @@ enum AppTheme {
     static let foreground = UIColor.label
     static let muted = UIColor.secondaryLabel
     static let accent = UIColor(red: 0.663, green: 0.769, blue: 0.851, alpha: 1)
+    static let accentForeground = UIColor(
+        red: 0.035,
+        green: 0.105,
+        blue: 0.145,
+        alpha: 1
+    )
     static let cardRadius: CGFloat = 24
     static let controlSize: CGFloat = 48
     static let primaryControlSize: CGFloat = 64

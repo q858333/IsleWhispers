@@ -79,7 +79,9 @@ final class PlayerControlsView: UIView {
 
     private static func makeButton(symbolName: String, size: CGFloat, accessibilityLabel: String) -> UIButton {
         let button = UIButton(type: .system)
-        button.tintColor = AppTheme.foreground
+        button.tintColor = symbolName == "play.fill"
+            ? AppTheme.accentForeground
+            : AppTheme.foreground
         button.backgroundColor = symbolName == "play.fill" ? AppTheme.accent : AppTheme.surface
         button.applyRoundedCorners(radius: size / 2)
         button.applySubtleShadow()

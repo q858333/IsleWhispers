@@ -4,6 +4,83 @@ import XCTest
 
 final class PlayerViewControllerLayoutTests: XCTestCase {
     @MainActor
+    func testRegularMainAreaScrollsAtShortAccessibilityHeight() throws {
+        let suite = "PlayerViewControllerLayoutTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let service = AudioPlayerService(defaults: defaults, configureSystemIntegration: false)
+        let player = PlayerViewController(playerService: service)
+        let host = UIViewController()
+        host.addChild(player)
+        host.view.addSubview(player.view)
+        player.didMove(toParent: host)
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: player
+        )
+
+        layout(player: player, host: host, size: CGSize(width: 720, height: 360))
+
+        let playButton = try XCTUnwrap(button(labelled: "播放", in: player.view))
+        let mainScrollView = try XCTUnwrap(
+            ancestors(of: playButton).compactMap { $0 as? UIScrollView }.first
+        )
+        XCTAssertGreaterThan(mainScrollView.contentSize.height, mainScrollView.bounds.height)
+        XCTAssertTrue(playButton.isDescendant(of: mainScrollView))
+        XCTAssertTrue(try XCTUnwrap(button(labelled: "返回", in: player.view)).isDescendant(of: mainScrollView))
+    }
+
+    @MainActor
+    func testSleepTimerButtonsReflowAndFitAtNarrowAccessibilityWidth() throws {
+        let suite = "PlayerViewControllerLayoutTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let service = AudioPlayerService(defaults: defaults, configureSystemIntegration: false)
+        let player = PlayerViewController(playerService: service)
+        let host = UIViewController()
+        host.addChild(player)
+        host.view.addSubview(player.view)
+        player.didMove(toParent: host)
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: player
+        )
+        layout(player: player, host: host, size: CGSize(width: 720, height: 360))
+
+        let timerView = try XCTUnwrap(
+            descendants(in: player.view).compactMap { $0 as? SleepTimerView }.first
+        )
+        XCTAssertLessThan(timerView.bounds.width, 320)
+        timerView.setNeedsLayout()
+        timerView.layoutIfNeeded()
+
+        let buttons = descendants(in: timerView).compactMap { $0 as? UIButton }
+        XCTAssertEqual(buttons.count, 4)
+        let rowPositions = Set(buttons.map {
+            round($0.convert($0.bounds, to: timerView).minY)
+        })
+        XCTAssertGreaterThanOrEqual(rowPositions.count, 2)
+        for button in buttons {
+            XCTAssertGreaterThanOrEqual(button.bounds.height, 44)
+            let titleLabel = try XCTUnwrap(button.titleLabel)
+            XCTAssertGreaterThanOrEqual(titleLabel.bounds.width + 1, titleLabel.intrinsicContentSize.width)
+            XCTAssertFalse(titleLabel.text?.isEmpty ?? true)
+        }
+    }
+
+    @MainActor
+    func testAccentForegroundMeetsContrastInLightAndDarkTraits() {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            let foreground = AppTheme.accentForeground.resolvedColor(with: traits)
+            let background = AppTheme.accent.resolvedColor(with: traits)
+            XCTAssertGreaterThanOrEqual(contrastRatio(foreground, background), 4.5)
+        }
+    }
+
+    @MainActor
     func testAdaptiveLayoutReleasesModeConstraintsAndSelfSizesForAccessibilityText() throws {
         let suite = "PlayerViewControllerLayoutTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -91,6 +168,17 @@ final class PlayerViewControllerLayoutTests: XCTestCase {
 
     private func descendants(in root: UIView) -> [UIView] {
         [root] + root.subviews.flatMap(descendants(in:))
+    }
+
+    private func ancestors(of view: UIView) -> [UIView] {
+        guard let superview = view.superview else { return [] }
+        return [superview] + ancestors(of: superview)
+    }
+
+    private func button(labelled label: String, in root: UIView) -> UIButton? {
+        descendants(in: root)
+            .compactMap { $0 as? UIButton }
+            .first { $0.accessibilityLabel == label }
     }
 
     private func contrastRatio(_ foreground: UIColor, _ background: UIColor) -> CGFloat {

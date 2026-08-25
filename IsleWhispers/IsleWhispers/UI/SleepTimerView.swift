@@ -2,6 +2,12 @@ import SnapKit
 import UIKit
 
 final class SleepTimerView: UIView {
+    private enum LayoutStyle {
+        case horizontal
+        case grid
+        case vertical
+    }
+
     var onSelect: ((SleepTimerOption) -> Void)?
 
     private let options: [(SleepTimerOption, String)] = [
@@ -11,6 +17,8 @@ final class SleepTimerView: UIView {
         (.minutes60, "60 分钟")
     ]
     private var buttons = [SleepTimerOption: UIButton]()
+    private var stackView: UIStackView?
+    private var layoutStyle: LayoutStyle?
 
     override init(frame: CGRect = .zero) {
         super.init(frame: frame)
@@ -25,23 +33,22 @@ final class SleepTimerView: UIView {
         for (option, button) in buttons {
             let isSelected = option == selected
             button.backgroundColor = isSelected ? AppTheme.accent : AppTheme.surface
-            button.setTitleColor(AppTheme.foreground, for: .normal)
+            button.setTitleColor(
+                isSelected ? AppTheme.accentForeground : AppTheme.foreground,
+                for: .normal
+            )
             button.accessibilityTraits = isSelected ? [.button, .selected] : .button
         }
     }
 
     private func setupViews() {
-        let stackView = UIStackView()
-        stackView.axis = .horizontal
-        stackView.alignment = .fill
-        stackView.distribution = .fillEqually
-        stackView.spacing = 8
-
         options.forEach { option, title in
             let button = UIButton(type: .system)
             button.setTitle(title, for: .normal)
             button.titleLabel?.font = AppTheme.font(.subheadline, weight: .semibold)
             button.titleLabel?.adjustsFontForContentSizeCategory = true
+            button.titleLabel?.numberOfLines = 0
+            button.titleLabel?.textAlignment = .center
             button.setTitleColor(AppTheme.foreground, for: .normal)
             button.backgroundColor = AppTheme.surface
             button.applyRoundedCorners(radius: AppTheme.controlSize / 2)
@@ -49,16 +56,78 @@ final class SleepTimerView: UIView {
             button.accessibilityTraits = .button
             button.addTarget(self, action: #selector(didTapOption(_:)), for: .touchUpInside)
             buttons[option] = button
-            stackView.addArrangedSubview(button)
             button.snp.makeConstraints { make in
                 make.height.greaterThanOrEqualTo(44)
             }
         }
 
-        addSubview(stackView)
-        stackView.snp.makeConstraints { make in
+        rebuildStack(for: desiredLayoutStyle)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let desiredStyle = desiredLayoutStyle
+        if desiredStyle != layoutStyle {
+            rebuildStack(for: desiredStyle)
+        }
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard previousTraitCollection?.preferredContentSizeCategory
+            != traitCollection.preferredContentSizeCategory else { return }
+        rebuildStack(for: desiredLayoutStyle)
+    }
+
+    private var desiredLayoutStyle: LayoutStyle {
+        if traitCollection.preferredContentSizeCategory.isAccessibilityCategory {
+            return .vertical
+        }
+        return bounds.width > 0 && bounds.width < 320 ? .grid : .horizontal
+    }
+
+    private func rebuildStack(for style: LayoutStyle) {
+        guard style != layoutStyle || stackView == nil else { return }
+        stackView?.removeFromSuperview()
+
+        let orderedButtons = options.compactMap { buttons[$0.0] }
+        let rootStack: UIStackView
+        switch style {
+        case .horizontal:
+            rootStack = makeStack(arrangedSubviews: orderedButtons, axis: .horizontal)
+        case .grid:
+            let firstRow = makeStack(
+                arrangedSubviews: Array(orderedButtons.prefix(2)),
+                axis: .horizontal
+            )
+            let secondRow = makeStack(
+                arrangedSubviews: Array(orderedButtons.suffix(2)),
+                axis: .horizontal
+            )
+            rootStack = makeStack(arrangedSubviews: [firstRow, secondRow], axis: .vertical)
+        case .vertical:
+            rootStack = makeStack(arrangedSubviews: orderedButtons, axis: .vertical)
+        }
+
+        addSubview(rootStack)
+        rootStack.snp.makeConstraints { make in
             make.edges.equalToSuperview()
         }
+        stackView = rootStack
+        layoutStyle = style
+        invalidateIntrinsicContentSize()
+    }
+
+    private func makeStack(
+        arrangedSubviews: [UIView],
+        axis: NSLayoutConstraint.Axis
+    ) -> UIStackView {
+        let stack = UIStackView(arrangedSubviews: arrangedSubviews)
+        stack.axis = axis
+        stack.alignment = .fill
+        stack.distribution = .fillEqually
+        stack.spacing = 8
+        return stack
     }
 
     @objc private func didTapOption(_ sender: UIButton) {
