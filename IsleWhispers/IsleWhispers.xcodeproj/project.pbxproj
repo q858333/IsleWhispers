@@ -6,8 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B0AADF2818BC39D2A2F78084 /* Pods_IsleWhispers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		230455C3303D35C4009F07A5 /* IsleWhispers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IsleWhispers.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_IsleWhispers.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.release.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.release.xcconfig"; sourceTree = "<group>"; };
+		88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.debug.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,17 +43,28 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B0AADF2818BC39D2A2F78084 /* Pods_IsleWhispers.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		160506005A7426FACAB21C69 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		230455BA303D35C4009F07A5 = {
 			isa = PBXGroup;
 			children = (
 				230455C5303D35C4009F07A5 /* IsleWhispers */,
 				230455C4303D35C4009F07A5 /* Products */,
+				C61E6A09C9D6EF5D699FD2E6 /* Pods */,
+				160506005A7426FACAB21C69 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,6 +76,16 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		C61E6A09C9D6EF5D699FD2E6 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */,
+				69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */,
+			);
+			name = Pods;
+			path = ../Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -65,9 +93,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 230455D9303D35C5009F07A5 /* Build configuration list for PBXNativeTarget "IsleWhispers" */;
 			buildPhases = (
+				782EF06F15D1F4C17B74A8E2 /* [CP] Check Pods Manifest.lock */,
 				230455BF303D35C4009F07A5 /* Sources */,
 				230455C0303D35C4009F07A5 /* Frameworks */,
 				230455C1303D35C4009F07A5 /* Resources */,
+				33836B1FD83AD7096DBA7946 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -77,8 +107,6 @@
 				230455C5303D35C4009F07A5 /* IsleWhispers */,
 			);
 			name = IsleWhispers;
-			packageProductDependencies = (
-			);
 			productName = IsleWhispers;
 			productReference = 230455C3303D35C4009F07A5 /* IsleWhispers.app */;
 			productType = "com.apple.product-type.application";
@@ -127,6 +155,53 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		33836B1FD83AD7096DBA7946 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+				"${PODS_ROOT}/resources-to-copy-IsleWhispers.txt",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SnapKit_Privacy.bundle/Info.plist",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SnapKit_Privacy.bundle/PrivacyInfo.xcprivacy",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		782EF06F15D1F4C17B74A8E2 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-IsleWhispers-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		230455BF303D35C4009F07A5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -140,6 +215,7 @@
 /* Begin XCBuildConfiguration section */
 		230455DA303D35C5009F07A5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -150,7 +226,6 @@
 				INFOPLIST_FILE = IsleWhispers/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -172,6 +247,7 @@
 		};
 		230455DB303D35C5009F07A5 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -182,7 +258,6 @@
 				INFOPLIST_FILE = IsleWhispers/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -255,7 +330,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -313,7 +388,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;

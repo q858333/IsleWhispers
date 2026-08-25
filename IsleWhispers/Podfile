@@ -1,0 +1,49 @@
+platform :ios, '15.0'
+use_frameworks! :linkage => :static
+
+target 'IsleWhispers' do
+  pod 'SnapKit', '~> 5.7'
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
+end
+
+post_integrate do |installer|
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.user_project.native_targets.each do |target|
+      phase = target.shell_script_build_phases.find do |build_phase|
+        build_phase.name == '[CP] Copy Pods Resources'
+      end
+      next unless phase
+
+      output_paths = [
+        '${PODS_ROOT}/resources-to-copy-IsleWhispers.txt',
+        '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SnapKit_Privacy.bundle/Info.plist',
+        '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SnapKit_Privacy.bundle/PrivacyInfo.xcprivacy'
+      ]
+      phase.output_paths ||= []
+      output_paths.each do |output_path|
+        phase.output_paths << output_path unless phase.output_paths.include?(output_path)
+      end
+    end
+    aggregate_target.user_project.save
+  end
+
+  resource_script = File.join(
+    installer.sandbox.root,
+    'Target Support Files',
+    'Pods-IsleWhispers',
+    'Pods-IsleWhispers-resources.sh'
+  )
+  resource_script_contents = File.read(resource_script)
+  in_place_contents = resource_script_contents.sub(
+    'rsync -avr --copy-links --no-relative',
+    'rsync -avr --inplace --copy-links --no-relative'
+  )
+  File.write(resource_script, in_place_contents) unless resource_script_contents == in_place_contents
+end
