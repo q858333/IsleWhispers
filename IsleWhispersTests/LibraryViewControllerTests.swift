@@ -35,7 +35,7 @@ final class LibraryViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testAccessibilityTextIncreasesCompactSoundCellHeight() throws {
+    func testContentSizeCategoryNotificationRefreshesVisibleSoundCells() throws {
         let (controller, _, cleanup) = makeController()
         defer { cleanup() }
 
@@ -43,29 +43,45 @@ final class LibraryViewControllerTests: XCTestCase {
         host.addChild(controller)
         host.view.addSubview(controller.view)
         controller.didMove(toParent: host)
-        host.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .large),
-            forChild: controller
-        )
         layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
 
         let collectionView = try XCTUnwrap(findSubview(of: UICollectionView.self, in: controller.view))
-        let normalHeight = try frames(for: 0...0, in: collectionView)[0].height
+        let indexPath = IndexPath(item: 0, section: 0)
+        let visibleCell = try XCTUnwrap(collectionView.cellForItem(at: indexPath))
+        visibleCell.accessibilityLabel = "stale"
 
-        host.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
-            forChild: controller
-        )
-        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
-        controller.traitCollectionDidChange(
-            UITraitCollection(preferredContentSizeCategory: .large)
-        )
         NotificationCenter.default.post(
             name: UIContentSizeCategory.didChangeNotification,
             object: nil
         )
         layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
 
+        let refreshedCell = try XCTUnwrap(collectionView.cellForItem(at: indexPath))
+        XCTAssertEqual(
+            refreshedCell.accessibilityLabel,
+            "\(Sound.catalog[0].title)：\(Sound.catalog[0].subtitle)"
+        )
+    }
+
+    @MainActor
+    func testAccessibilityFontChangeIncreasesCompactSoundCellHeightAfterProductionRefresh() throws {
+        let (controller, _, cleanup) = makeController()
+        defer { cleanup() }
+
+        let host = UIViewController()
+        host.addChild(controller)
+        host.view.addSubview(controller.view)
+        controller.didMove(toParent: host)
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
+
+        let collectionView = try XCTUnwrap(findSubview(of: UICollectionView.self, in: controller.view))
+        let normalHeight = try itemHeight(at: 0, in: collectionView)
+
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: controller
+        )
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
         XCTAssertEqual(
             controller.traitCollection.preferredContentSizeCategory,
             .accessibilityExtraExtraExtraLarge
@@ -73,10 +89,14 @@ final class LibraryViewControllerTests: XCTestCase {
         descendants(in: collectionView).compactMap { $0 as? UILabel }.forEach {
             $0.font = UIFont.systemFont(ofSize: 44, weight: .semibold)
         }
-        collectionView.collectionViewLayout.invalidateLayout()
-        collectionView.invalidateIntrinsicContentSize()
+
+        NotificationCenter.default.post(
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
         layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
-        let accessibilityHeight = try frames(for: 0...0, in: collectionView)[0].height
+
+        let accessibilityHeight = try itemHeight(at: 0, in: collectionView)
         XCTAssertGreaterThan(accessibilityHeight, normalHeight)
     }
 
@@ -197,6 +217,15 @@ final class LibraryViewControllerTests: XCTestCase {
                 )?.frame
             )
         }
+    }
+
+    private func itemHeight(at item: Int, in collectionView: UICollectionView) throws -> CGFloat {
+        collectionView.layoutIfNeeded()
+        return try XCTUnwrap(
+            collectionView.collectionViewLayout.layoutAttributesForItem(
+                at: IndexPath(item: item, section: 0)
+            )?.frame.height
+        )
     }
 
     private func activeConstraintCount(constant: CGFloat, in root: UIView) -> Int {
