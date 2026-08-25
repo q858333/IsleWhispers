@@ -1,0 +1,6 @@
+.worktrees/
+.superpowers/sdd/
+Pods/
+*.xcuserstate
+xcuserdata/
+
