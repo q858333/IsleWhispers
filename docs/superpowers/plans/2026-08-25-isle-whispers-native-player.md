@@ -6,15 +6,15 @@
 
 **Architecture:** Keep the existing UIKit application and replace storyboard startup with a programmatic navigation root. A single `AudioPlayerService` owns `AVAudioPlayer`, current selection, remote commands, persistence, and the sleep deadline; two adaptive view controllers render that shared state using SnapKit constraints.
 
-**Tech Stack:** Swift 5, UIKit, Auto Layout, SnapKit 5.7 via CocoaPods, AVFoundation, MediaPlayer, XCTest, Xcode 26.3
+**Tech Stack:** Swift 5, UIKit, Auto Layout, SnapKit 5.7 via CocoaPods, AVFoundation, MediaPlayer, XCTest, Xcode 26.3, iOS 15+
 
 **Spec:** `docs/superpowers/specs/2026-08-25-isle-whispers-native-player-design.md`
 
 ## Global Constraints
 
-- Keep the existing iOS 26.2 deployment target and `TARGETED_DEVICE_FAMILY = "1,2"`.
+- Set the minimum deployment target to iOS 15.0 and keep `TARGETED_DEVICE_FAMILY = "1,2"`.
 - Use UIKit and programmatic Auto Layout; all authored layout constraints use SnapKit.
-- Manage SnapKit with CocoaPods; add no other third-party dependencies.
+- Manage SnapKit with CocoaPods and keep it as the only third-party dependency.
 - Bundle exactly the 15 supplied CAF sounds and their 15 matching PNG backgrounds.
 - Loop the selected sound indefinitely with `AVAudioPlayer.numberOfLoops = -1`.
 - Do not create a progress bar, elapsed-time label, duration label, or playback-progress timer.
@@ -25,7 +25,7 @@
 
 ## File Map
 
-- Create `Podfile`: CocoaPods platform and SnapKit dependency.
+- Modify `IsleWhispers/Podfile`: CocoaPods iOS 15 static-linkage configuration with SnapKit only.
 - Create `IsleWhispers/IsleWhispers/Models/Sound.swift`: immutable sound metadata and 15-item catalog.
 - Create `IsleWhispers/IsleWhispers/Playback/PlaybackState.swift`: deterministic selection and sleep-deadline state.
 - Create `IsleWhispers/IsleWhispers/Services/AudioPlayerService.swift`: AVAudioPlayer, session, interruptions, routes, persistence, sleep timer, and lock-screen commands.
@@ -42,20 +42,20 @@
 - Modify `IsleWhispers/IsleWhispers.xcodeproj/project.pbxproj`: remove main storyboard build-setting key and add XCTest target.
 - Copy `Mobile-App/*.caf` to `IsleWhispers/IsleWhispers/Resources/Audio/`.
 - Copy `Mobile-App/assets/backgrounds/*.png` to `IsleWhispers/IsleWhispers/Resources/Backgrounds/`.
-- Generate `IsleWhispers.xcworkspace/` and `Podfile.lock` with `pod install`.
+- Preserve/generate `IsleWhispers/IsleWhispers.xcworkspace/` and `IsleWhispers/Podfile.lock` with `pod install` from the nested project directory.
 
 ---
 
 ### Task 1: CocoaPods, resources, and programmatic startup foundation
 
 **Files:**
-- Create: `Podfile`
+- Modify: `IsleWhispers/Podfile`
 - Create: `IsleWhispers/IsleWhispers/Resources/Audio/*.caf`
 - Create: `IsleWhispers/IsleWhispers/Resources/Backgrounds/*.png`
 - Modify: `IsleWhispers/IsleWhispers/Info.plist`
 - Modify: `IsleWhispers/IsleWhispers.xcodeproj/project.pbxproj`
-- Generate: `Podfile.lock`
-- Generate: `IsleWhispers.xcworkspace/contents.xcworkspacedata`
+- Generate: `IsleWhispers/Podfile.lock`
+- Generate: `IsleWhispers/IsleWhispers.xcworkspace/contents.xcworkspacedata`
 
 **Interfaces:**
 - Consumes: Existing `IsleWhispers` application target.
@@ -64,8 +64,8 @@
 - [ ] **Step 1: Add the CocoaPods dependency declaration**
 
 ```ruby
-platform :ios, '26.2'
-use_frameworks!
+platform :ios, '15.0'
+use_frameworks! :linkage => :static
 
 target 'IsleWhispers' do
   pod 'SnapKit', '~> 5.7'
@@ -74,9 +74,9 @@ end
 
 - [ ] **Step 2: Install dependencies and verify the workspace**
 
-Run: `pod install`
+Run: `cd IsleWhispers && pod install`
 
-Expected: `Pod installation complete!` and `IsleWhispers.xcworkspace` exists.
+Expected: `Pod installation complete!` and `IsleWhispers/IsleWhispers.xcworkspace` exists.
 
 - [ ] **Step 3: Copy the supplied production assets without renaming them**
 
@@ -107,7 +107,7 @@ Remove `INFOPLIST_KEY_UIMainStoryboardFile = Main;` from both app-target build c
 Run:
 
 ```bash
-xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 ```
 
 Expected: `** BUILD SUCCEEDED **`; the build log includes copied CAF and PNG resources.
@@ -115,7 +115,7 @@ Expected: `** BUILD SUCCEEDED **`; the build log includes copied CAF and PNG res
 - [ ] **Step 6: Commit only foundation paths**
 
 ```bash
-git add Podfile Podfile.lock IsleWhispers.xcworkspace IsleWhispers/IsleWhispers/Info.plist IsleWhispers/IsleWhispers.xcodeproj/project.pbxproj IsleWhispers/IsleWhispers/Resources
+git add IsleWhispers/Podfile IsleWhispers/Podfile.lock IsleWhispers/IsleWhispers.xcworkspace IsleWhispers/IsleWhispers/Info.plist IsleWhispers/IsleWhispers.xcodeproj/project.pbxproj IsleWhispers/IsleWhispers/Resources
 git commit -m "build: configure native player dependencies and assets"
 ```
 
@@ -170,7 +170,7 @@ final class PlaybackStateTests: XCTestCase {
 
 - [ ] **Step 3: Run tests and confirm the new types are missing**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests/PlaybackStateTests test CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests/PlaybackStateTests test CODE_SIGNING_ALLOWED=NO`
 
 Expected: FAIL because `PlaybackState` and `SleepTimerState` do not exist.
 
@@ -282,7 +282,7 @@ final class AudioPlayerPersistenceTests: XCTestCase {
 
 - [ ] **Step 2: Run the persistence test and confirm failure**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests/AudioPlayerPersistenceTests test CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests/AudioPlayerPersistenceTests test CODE_SIGNING_ALLOWED=NO`
 
 Expected: FAIL because `AudioPlayerService` does not exist.
 
@@ -341,8 +341,8 @@ Configure `AVAudioSession.sharedInstance()` with category `.playback`, mode `.de
 Run:
 
 ```bash
-xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests test CODE_SIGNING_ALLOWED=NO
-xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:IsleWhispersTests test CODE_SIGNING_ALLOWED=NO
+xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 ```
 
 Expected: tests pass and build succeeds.
@@ -399,7 +399,7 @@ Use four pill buttons for `.unlimited`, `.minutes15`, `.minutes30`, and `.minute
 
 - [ ] **Step 5: Build and commit shared UI**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
 
 Expected: `** BUILD SUCCEEDED **`.
 
@@ -448,7 +448,7 @@ Observe `.audioPlayerStateDidChange`, call `render()` on the main actor, reload 
 
 - [ ] **Step 5: Build and commit the library screen**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
 
 Expected: build succeeds without ambiguous-layout warnings in the source.
 
@@ -486,7 +486,7 @@ Observe `.audioPlayerStateDidChange`; update the background, title, subtitle, se
 
 - [ ] **Step 5: Build and commit the immersive screen**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
 
 Expected: `** BUILD SUCCEEDED **`.
 
@@ -533,8 +533,8 @@ In `application(_:didFinishLaunchingWithOptions:)`, set `UIView.appearance().tin
 - [ ] **Step 3: Run all tests and build**
 
 ```bash
-xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test CODE_SIGNING_ALLOWED=NO
-xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test CODE_SIGNING_ALLOWED=NO
+xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 ```
 
 Expected: `** TEST SUCCEEDED **` and `** BUILD SUCCEEDED **`.
@@ -572,7 +572,7 @@ Expected: no playback-progress implementation matches; both resource counts are 
 
 - [ ] **Step 2: Run the automated suite**
 
-Run: `xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test CODE_SIGNING_ALLOWED=NO`
+Run: `xcodebuild -workspace IsleWhispers/IsleWhispers.xcworkspace -scheme IsleWhispers -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test CODE_SIGNING_ALLOWED=NO`
 
 Expected: `** TEST SUCCEEDED **`.
 

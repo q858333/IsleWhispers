@@ -8,8 +8,8 @@
 
 - 保留 UIKit 生命周期和现有 Xcode 工程，不迁移 SwiftUI。
 - 使用纯代码视图层和 Auto Layout；约束通过 SnapKit 表达。
-- 使用 CocoaPods 管理 SnapKit，提交 `Podfile`、`Podfile.lock` 和生成的 workspace 配置。
-- 保持工程当前 iOS 26.2 部署目标以及 iPhone/iPad Universal 设备族设置。
+- 使用 CocoaPods 管理 SnapKit；按用户确认保持最小依赖，不引入 IQKeyboardManager 或 Alamofire。
+- 最低支持 iOS 15.0，并保持 iPhone/iPad Universal 设备族设置。
 - 音频基于 `AVAudioPlayer`；启用 `.playback` 音频会话和后台音频模式。
 - 使用 `MPRemoteCommandCenter` 与 `MPNowPlayingInfoCenter` 提供锁屏播放、暂停、上一种和下一种控制。
 
@@ -79,7 +79,7 @@
 ## 验证
 
 - 为声音索引循环、切换时播放意图、睡眠定时状态和最后选择持久化编写单元测试。
-- 使用 `pod install` 生成 workspace 后，通过 `IsleWhispers.xcworkspace` 编译。
+- 使用 `pod install` 生成 workspace 后，通过 `IsleWhispers/IsleWhispers.xcworkspace` 编译。
 - 至少验证一个小屏 iPhone、一个标准 iPhone、iPad 竖屏、iPad 横屏和窄分屏尺寸。
 - 手工验证播放/暂停、无限循环、上一种/下一种、直接选声、睡眠定时、后台继续播放和锁屏控制。
 - 检查界面中不存在进度条、时长或已播放时间。
