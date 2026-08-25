@@ -23,6 +23,12 @@ private final class LibraryContentSizedCollectionView: UICollectionView {
             height: max(collectionViewLayout.collectionViewContentSize.height, 1)
         )
     }
+
+    func invalidateSelfSizingLayout() {
+        collectionViewLayout.invalidateLayout()
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
 }
 
 final class LibraryViewController: UIViewController {
@@ -104,6 +110,16 @@ final class LibraryViewController: UIViewController {
             : .compact
         guard nextMode != layoutMode else { return }
         rebuildLayout(for: nextMode)
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard
+            previousTraitCollection?.preferredContentSizeCategory
+                != traitCollection.preferredContentSizeCategory
+        else { return }
+
+        refreshForContentSizeCategory()
     }
 
     private func setupViews() {
@@ -202,6 +218,12 @@ final class LibraryViewController: UIViewController {
             selector: #selector(handlePlayerStateDidChange),
             name: .audioPlayerStateDidChange,
             object: playerService
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleContentSizeCategoryDidChange),
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
         )
     }
 
@@ -369,9 +391,25 @@ final class LibraryViewController: UIViewController {
         playerStack.setCustomSpacing(24, after: trackStack)
         playerStack.setCustomSpacing(22, after: waveVisual)
         playerStack.setCustomSpacing(20, after: controlsView)
-        playerPane.addSubview(playerStack)
+
+        let playerScrollView = UIScrollView()
+        playerScrollView.alwaysBounceVertical = true
+        playerScrollView.showsVerticalScrollIndicator = false
+        playerPane.addSubview(playerScrollView)
+        playerScrollView.snp.makeConstraints { make in
+            adaptiveConstraints.append(make.edges.equalToSuperview().constraint)
+        }
+        playerScrollView.addSubview(playerStack)
         playerStack.snp.makeConstraints { make in
-            adaptiveConstraints.append(make.edges.equalToSuperview().inset(28).constraint)
+            adaptiveConstraints.append(
+                make.top.equalTo(playerScrollView.contentLayoutGuide).offset(28).constraint
+            )
+            adaptiveConstraints.append(
+                make.leading.trailing.equalTo(playerScrollView.frameLayoutGuide).inset(28).constraint
+            )
+            adaptiveConstraints.append(
+                make.bottom.equalTo(playerScrollView.contentLayoutGuide).inset(28).constraint
+            )
         }
         waveVisual.snp.makeConstraints { make in
             adaptiveConstraints.append(make.height.greaterThanOrEqualTo(180).constraint)
@@ -436,12 +474,12 @@ final class LibraryViewController: UIViewController {
         let rowHeight: CGFloat = mode == .compact ? 96 : 52
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
-            heightDimension: .absolute(rowHeight)
+            heightDimension: .estimated(rowHeight)
         )
         let item = NSCollectionLayoutItem(layoutSize: itemSize)
         let groupSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
-            heightDimension: .absolute(rowHeight)
+            heightDimension: .estimated(rowHeight)
         )
         let group: NSCollectionLayoutGroup
         switch mode {
@@ -467,8 +505,17 @@ final class LibraryViewController: UIViewController {
         collectionView.reloadData()
     }
 
+    private func refreshForContentSizeCategory() {
+        collectionView.reloadData()
+        collectionView.invalidateSelfSizingLayout()
+    }
+
     @objc private func handlePlayerStateDidChange() {
         render()
+    }
+
+    @objc private func handleContentSizeCategoryDidChange() {
+        refreshForContentSizeCategory()
     }
 }
 

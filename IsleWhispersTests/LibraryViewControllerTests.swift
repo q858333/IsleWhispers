@@ -28,6 +28,94 @@ final class LibraryViewControllerTests: XCTestCase {
 
         layout(controller: controller, host: host, size: CGSize(width: 719, height: 900))
         XCTAssertEqual(activeConstraintCount(constant: 290, in: controller.view), 0)
+        let returnedCompactFrames = try frames(for: 0...3, in: collectionView)
+        XCTAssertEqual(returnedCompactFrames[0].minY, returnedCompactFrames[1].minY, accuracy: 1)
+        XCTAssertEqual(returnedCompactFrames[1].minY, returnedCompactFrames[2].minY, accuracy: 1)
+        XCTAssertGreaterThan(returnedCompactFrames[3].minY, returnedCompactFrames[0].minY)
+    }
+
+    @MainActor
+    func testAccessibilityTextIncreasesCompactSoundCellHeight() throws {
+        let (controller, _, cleanup) = makeController()
+        defer { cleanup() }
+
+        let host = UIViewController()
+        host.addChild(controller)
+        host.view.addSubview(controller.view)
+        controller.didMove(toParent: host)
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .large),
+            forChild: controller
+        )
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
+
+        let collectionView = try XCTUnwrap(findSubview(of: UICollectionView.self, in: controller.view))
+        let normalHeight = try frames(for: 0...0, in: collectionView)[0].height
+
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: controller
+        )
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
+        controller.traitCollectionDidChange(
+            UITraitCollection(preferredContentSizeCategory: .large)
+        )
+        NotificationCenter.default.post(
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
+
+        XCTAssertEqual(
+            controller.traitCollection.preferredContentSizeCategory,
+            .accessibilityExtraExtraExtraLarge
+        )
+        descendants(in: collectionView).compactMap { $0 as? UILabel }.forEach {
+            $0.font = UIFont.systemFont(ofSize: 44, weight: .semibold)
+        }
+        collectionView.collectionViewLayout.invalidateLayout()
+        collectionView.invalidateIntrinsicContentSize()
+        layout(controller: controller, host: host, size: CGSize(width: 390, height: 844))
+        let accessibilityHeight = try frames(for: 0...0, in: collectionView)[0].height
+        XCTAssertGreaterThan(accessibilityHeight, normalHeight)
+    }
+
+    @MainActor
+    func testRegularPlayerPaneScrollsInShortAccessibilityHeight() throws {
+        let (controller, service, cleanup) = makeController()
+        defer { cleanup() }
+
+        let host = UIViewController()
+        host.addChild(controller)
+        host.view.addSubview(controller.view)
+        controller.didMove(toParent: host)
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: controller
+        )
+        layout(controller: controller, host: host, size: CGSize(width: 720, height: 360))
+        XCTAssertEqual(
+            controller.traitCollection.preferredContentSizeCategory,
+            .accessibilityExtraExtraExtraLarge
+        )
+
+        let playerScrollView = try XCTUnwrap(
+            descendants(in: controller.view)
+                .compactMap { $0 as? UIScrollView }
+                .first { !($0 is UICollectionView) }
+        )
+        XCTAssertGreaterThan(playerScrollView.contentSize.height, playerScrollView.bounds.height)
+
+        for label in ["上一种声音", "播放", "下一种声音", "睡眠定时：60 分钟"] {
+            let control = try XCTUnwrap(button(labelled: label, in: controller.view))
+            XCTAssertTrue(control.isDescendant(of: playerScrollView))
+        }
+        let status = try XCTUnwrap(
+            descendants(in: controller.view)
+                .compactMap { $0 as? UILabel }
+                .first { $0.text == service.statusMessage }
+        )
+        XCTAssertTrue(status.isDescendant(of: playerScrollView))
     }
 
     @MainActor
