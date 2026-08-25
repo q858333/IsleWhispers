@@ -3,6 +3,10 @@ use_frameworks! :linkage => :static
 
 target 'IsleWhispers' do
   pod 'SnapKit', '~> 5.7'
+
+  target 'IsleWhispersTests' do
+    inherit! :search_paths
+  end
 end
 
 post_install do |installer|

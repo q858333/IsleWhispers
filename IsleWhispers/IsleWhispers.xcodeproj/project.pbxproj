@@ -8,15 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B0AADF2818BC39D2A2F78084 /* Pods_IsleWhispers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */; };
+		B79BDC791627106191FF3426 /* Pods_IsleWhispersTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 778CE7D9EB2137416AB7B5C4 /* Pods_IsleWhispersTests.framework */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXFileReference section */
-		230455C3303D35C4009F07A5 /* IsleWhispers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IsleWhispers.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_IsleWhispers.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.release.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.release.xcconfig"; sourceTree = "<group>"; };
-		88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.debug.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.debug.xcconfig"; sourceTree = "<group>"; };
-		A20000000000000000000001 /* IsleWhispersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IsleWhispersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
 		A20000000000000000000007 /* PBXContainerItemProxy */ = {
@@ -27,6 +20,17 @@
 			remoteInfo = IsleWhispers;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		230455C3303D35C4009F07A5 /* IsleWhispers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IsleWhispers.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_IsleWhispers.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		3F5313A3C84C64993E3D18B4 /* Pods-IsleWhispersTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispersTests.debug.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispersTests/Pods-IsleWhispersTests.debug.xcconfig"; sourceTree = "<group>"; };
+		69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.release.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.release.xcconfig"; sourceTree = "<group>"; };
+		778CE7D9EB2137416AB7B5C4 /* Pods_IsleWhispersTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_IsleWhispersTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7944F7B6856646FAF107CF5E /* Pods-IsleWhispersTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispersTests.release.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispersTests/Pods-IsleWhispersTests.release.xcconfig"; sourceTree = "<group>"; };
+		88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.debug.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.debug.xcconfig"; sourceTree = "<group>"; };
+		A20000000000000000000001 /* IsleWhispersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IsleWhispersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		230455D8303D35C5009F07A5 /* Exceptions for "IsleWhispers" folder in "IsleWhispers" target */ = {
@@ -47,8 +51,10 @@
 			path = IsleWhispers;
 			sourceTree = "<group>";
 		};
-		A20000000000000000000002 /* IsleWhispersTests */ = {
+		A20000000000000000000002 /* ../IsleWhispersTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ../IsleWhispersTests;
 			sourceTree = "<group>";
 		};
@@ -67,6 +73,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B79BDC791627106191FF3426 /* Pods_IsleWhispersTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */,
+				778CE7D9EB2137416AB7B5C4 /* Pods_IsleWhispersTests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -85,7 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				230455C5303D35C4009F07A5 /* IsleWhispers */,
-				A20000000000000000000002 /* IsleWhispersTests */,
+				A20000000000000000000002 /* ../IsleWhispersTests */,
 				230455C4303D35C4009F07A5 /* Products */,
 				C61E6A09C9D6EF5D699FD2E6 /* Pods */,
 				160506005A7426FACAB21C69 /* Frameworks */,
@@ -106,6 +114,8 @@
 			children = (
 				88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */,
 				69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */,
+				3F5313A3C84C64993E3D18B4 /* Pods-IsleWhispersTests.debug.xcconfig */,
+				7944F7B6856646FAF107CF5E /* Pods-IsleWhispersTests.release.xcconfig */,
 			);
 			name = Pods;
 			path = ../Pods;
@@ -140,6 +150,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A2000000000000000000000B /* Build configuration list for PBXNativeTarget "IsleWhispersTests" */;
 			buildPhases = (
+				5AB8DF5E04AB5D8F20D9334B /* [CP] Check Pods Manifest.lock */,
 				A20000000000000000000005 /* Sources */,
 				A20000000000000000000003 /* Frameworks */,
 				A20000000000000000000004 /* Resources */,
@@ -150,7 +161,7 @@
 				A20000000000000000000008 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				A20000000000000000000002 /* IsleWhispersTests */,
+				A20000000000000000000002 /* ../IsleWhispersTests */,
 			);
 			name = IsleWhispersTests;
 			productName = IsleWhispersTests;
@@ -234,6 +245,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5AB8DF5E04AB5D8F20D9334B /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-IsleWhispersTests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 		782EF06F15D1F4C17B74A8E2 /* [CP] Check Pods Manifest.lock */ = {
@@ -473,6 +506,7 @@
 		};
 		A20000000000000000000009 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3F5313A3C84C64993E3D18B4 /* Pods-IsleWhispersTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
@@ -492,6 +526,7 @@
 		};
 		A2000000000000000000000A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7944F7B6856646FAF107CF5E /* Pods-IsleWhispersTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
