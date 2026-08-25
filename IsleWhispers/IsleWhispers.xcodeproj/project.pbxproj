@@ -15,7 +15,18 @@
 		2518F12000C06FB709A34C40 /* Pods_IsleWhispers.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_IsleWhispers.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		69E0A87CC39A620CE4FCE505 /* Pods-IsleWhispers.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.release.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.release.xcconfig"; sourceTree = "<group>"; };
 		88B274C586AED973C9253E19 /* Pods-IsleWhispers.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-IsleWhispers.debug.xcconfig"; path = "../IsleWhispers/Pods/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers.debug.xcconfig"; sourceTree = "<group>"; };
+		A20000000000000000000001 /* IsleWhispersTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IsleWhispersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		A20000000000000000000007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 230455BB303D35C4009F07A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 230455C2303D35C4009F07A5;
+			remoteInfo = IsleWhispers;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		230455D8303D35C5009F07A5 /* Exceptions for "IsleWhispers" folder in "IsleWhispers" target */ = {
@@ -36,6 +47,11 @@
 			path = IsleWhispers;
 			sourceTree = "<group>";
 		};
+		A20000000000000000000002 /* IsleWhispersTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ../IsleWhispersTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +60,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0AADF2818BC39D2A2F78084 /* Pods_IsleWhispers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A20000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				230455C5303D35C4009F07A5 /* IsleWhispers */,
+				A20000000000000000000002 /* IsleWhispersTests */,
 				230455C4303D35C4009F07A5 /* Products */,
 				C61E6A09C9D6EF5D699FD2E6 /* Pods */,
 				160506005A7426FACAB21C69 /* Frameworks */,
@@ -72,6 +96,7 @@
 			isa = PBXGroup;
 			children = (
 				230455C3303D35C4009F07A5 /* IsleWhispers.app */,
+				A20000000000000000000001 /* IsleWhispersTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -111,6 +136,27 @@
 			productReference = 230455C3303D35C4009F07A5 /* IsleWhispers.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A20000000000000000000006 /* IsleWhispersTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A2000000000000000000000B /* Build configuration list for PBXNativeTarget "IsleWhispersTests" */;
+			buildPhases = (
+				A20000000000000000000005 /* Sources */,
+				A20000000000000000000003 /* Frameworks */,
+				A20000000000000000000004 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A20000000000000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A20000000000000000000002 /* IsleWhispersTests */,
+			);
+			name = IsleWhispersTests;
+			productName = IsleWhispersTests;
+			productReference = A20000000000000000000001 /* IsleWhispersTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -123,6 +169,10 @@
 				TargetAttributes = {
 					230455C2303D35C4009F07A5 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					A20000000000000000000006 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 230455C2303D35C4009F07A5;
 					};
 				};
 			};
@@ -141,12 +191,20 @@
 			projectRoot = "";
 			targets = (
 				230455C2303D35C4009F07A5 /* IsleWhispers */,
+				A20000000000000000000006 /* IsleWhispersTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		230455C1303D35C4009F07A5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A20000000000000000000004 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -210,7 +268,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A20000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A20000000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 230455C2303D35C4009F07A5 /* IsleWhispers */;
+			targetProxy = A20000000000000000000007 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		230455DA303D35C5009F07A5 /* Debug */ = {
@@ -398,6 +471,44 @@
 			};
 			name = Release;
 		};
+		A20000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LVZF6F7GU2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = DB.IsleWhispersTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IsleWhispers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/IsleWhispers";
+			};
+			name = Debug;
+		};
+		A2000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LVZF6F7GU2;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = DB.IsleWhispersTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/IsleWhispers.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/IsleWhispers";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -415,6 +526,15 @@
 			buildConfigurations = (
 				230455DA303D35C5009F07A5 /* Debug */,
 				230455DB303D35C5009F07A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A2000000000000000000000B /* Build configuration list for PBXNativeTarget "IsleWhispersTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A20000000000000000000009 /* Debug */,
+				A2000000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
