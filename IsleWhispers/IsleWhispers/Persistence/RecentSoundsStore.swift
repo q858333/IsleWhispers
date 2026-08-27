@@ -10,7 +10,12 @@ final class RecentSoundsStore {
         self.defaults = defaults
         let ids = defaults.stringArray(forKey: Self.defaultsKey) ?? []
         let byID = Dictionary(uniqueKeysWithValues: Sound.catalog.map { ($0.id, $0) })
-        recentSounds = ids.compactMap { byID[$0] }
+        var seenIDs = Set<String>()
+        recentSounds = ids.compactMap { id in
+            guard let sound = byID[id], seenIDs.insert(id).inserted else { return nil }
+            return sound
+        }
+        recentSounds = Array(recentSounds.prefix(6))
         persist()
     }
 
