@@ -14,6 +14,10 @@ enum AppTheme {
     static let foreground = UIColor.label
     static let muted = UIColor.secondaryLabel
     static let accent = UIColor(red: 0.663, green: 0.769, blue: 0.851, alpha: 1)
+    static let warmRose = UIColor(red: 0.73, green: 0.55, blue: 0.56, alpha: 1)
+    static let warmCream = UIColor(red: 0.98, green: 0.91, blue: 0.79, alpha: 1)
+    static let homeOverlay = UIColor.black.withAlphaComponent(0.28)
+    static let tabBarBackground = UIColor(red: 0.16, green: 0.13, blue: 0.14, alpha: 0.88)
     static let accentForeground = UIColor(
         red: 0.035,
         green: 0.105,
