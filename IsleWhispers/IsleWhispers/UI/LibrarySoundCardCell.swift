@@ -93,8 +93,5 @@ final class LibrarySoundCardCell: UICollectionViewCell {
             make.top.greaterThanOrEqualToSuperview().offset(16)
             make.bottom.equalTo(subtitleLabel.snp.top).offset(-4)
         }
-        contentView.snp.makeConstraints { make in
-            make.height.greaterThanOrEqualTo(contentView.snp.width).multipliedBy(0.72)
-        }
     }
 }

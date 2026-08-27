@@ -32,4 +32,28 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         XCTAssertEqual(controller.columnCount(for: .large), 2)
         XCTAssertEqual(controller.columnCount(for: .accessibilityExtraExtraExtraLarge), 1)
     }
+
+    @MainActor
+    func testTwoColumnCardContentMatchesCellBounds() throws {
+        let controller = SoundLibraryViewController(selectedSoundID: Sound.catalog[2].id)
+        controller.loadViewIfNeeded()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        controller.view.layoutIfNeeded()
+
+        let collectionView = try XCTUnwrap(findCollectionView(in: controller.view))
+        collectionView.layoutIfNeeded()
+        let firstCell = try XCTUnwrap(collectionView.cellForItem(at: IndexPath(item: 0, section: 0)))
+
+        XCTAssertEqual(firstCell.contentView.frame.minX, firstCell.bounds.minX, accuracy: 0.5)
+        XCTAssertEqual(firstCell.contentView.frame.minY, firstCell.bounds.minY, accuracy: 0.5)
+        XCTAssertEqual(firstCell.contentView.frame.width, firstCell.bounds.width, accuracy: 0.5)
+        XCTAssertEqual(firstCell.contentView.frame.height, firstCell.bounds.height, accuracy: 0.5)
+    }
+
+    private func findCollectionView(in view: UIView) -> UICollectionView? {
+        if let collectionView = view as? UICollectionView {
+            return collectionView
+        }
+        return view.subviews.lazy.compactMap(findCollectionView(in:)).first
+    }
 }
