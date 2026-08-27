@@ -28,6 +28,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private(set) var sleepTimerState = SleepTimerState()
     private var player: AVAudioPlayer?
     private(set) var statusMessage = "准备就绪"
+    private(set) var isMuted = false
 
     var selectedIndex: Int { state.selectedIndex }
     var currentSound: Sound { Sound.catalog[selectedIndex] }
@@ -96,6 +97,24 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         prepareSelectedSound()
         if shouldContinue { play() }
         publishState()
+    }
+
+    func selectAndPlay(at index: Int) {
+        state.select(index: index, count: Sound.catalog.count)
+        defaults.set(selectedIndex, forKey: Self.selectedSoundDefaultsKey)
+        prepareSelectedSound()
+        play()
+    }
+
+    func setMuted(_ muted: Bool) {
+        guard isMuted != muted else { return }
+        isMuted = muted
+        player?.volume = muted ? 0 : 1
+        publishState()
+    }
+
+    func toggleMuted() {
+        setMuted(!isMuted)
     }
 
     func togglePlayback() {
@@ -252,6 +271,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
                 statusMessage = "音频解码失败"
                 return
             }
+            preparedPlayer.volume = isMuted ? 0 : 1
             player = preparedPlayer
             statusMessage = "准备就绪"
         } catch {

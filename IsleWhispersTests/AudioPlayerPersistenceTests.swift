@@ -263,6 +263,48 @@ final class AudioPlayerPersistenceTests: XCTestCase {
         defaults.removePersistentDomain(forName: suite)
     }
 
+    @MainActor
+    func testSelectAndPlayStartsNewSoundEvenWhenPreviouslyPaused() {
+        let (service, defaults, suite) = makeService()
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        XCTAssertFalse(service.isPlaying)
+        service.selectAndPlay(at: 4)
+
+        XCTAssertEqual(service.selectedIndex, 4)
+        XCTAssertTrue(service.isPlaying)
+    }
+
+    @MainActor
+    func testMuteDoesNotPauseAndSurvivesSoundSelection() {
+        let (service, defaults, suite) = makeService()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        service.play()
+
+        service.setMuted(true)
+        XCTAssertTrue(service.isMuted)
+        XCTAssertTrue(service.isPlaying)
+
+        service.selectAndPlay(at: 7)
+        XCTAssertTrue(service.isMuted)
+        XCTAssertTrue(service.isPlaying)
+
+        service.toggleMuted()
+        XCTAssertFalse(service.isMuted)
+        XCTAssertTrue(service.isPlaying)
+    }
+
+    @MainActor
+    private func makeService() -> (AudioPlayerService, UserDefaults, String) {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        return (
+            AudioPlayerService(defaults: defaults, configureSystemIntegration: false),
+            defaults,
+            suite
+        )
+    }
+
     private func interruption(
         _ type: AVAudioSession.InterruptionType,
         shouldResume: Bool = false
