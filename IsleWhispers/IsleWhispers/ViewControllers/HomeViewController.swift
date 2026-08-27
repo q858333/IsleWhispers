@@ -3,11 +3,14 @@ import UIKit
 
 final class HomeViewController: UIViewController {
     private static let readyStatus = "准备就绪"
+    static let backgroundSettleDuration: TimeInterval = 0.25
 
     private let playerService: AudioPlayerService
     private let recentStore: RecentSoundsStore
     private let carousel: InfiniteSoundCarousel
     private(set) var displayedSoundIndex: Int
+    private var coordinatedRecentSelectionIndex: Int
+    private var hasRecordedCoordinatedSelection = false
 
     private let firstBackgroundImageView = UIImageView()
     private let secondBackgroundImageView = UIImageView()
@@ -37,6 +40,7 @@ final class HomeViewController: UIViewController {
         self.playerService = playerService
         self.recentStore = recentStore
         displayedSoundIndex = playerService.selectedIndex
+        coordinatedRecentSelectionIndex = playerService.selectedIndex
         carousel = InfiniteSoundCarousel(
             sounds: Sound.catalog,
             selectedIndex: playerService.selectedIndex
@@ -75,7 +79,6 @@ final class HomeViewController: UIViewController {
     func selectAndPlaySound(at index: Int, animated: Bool) {
         guard Sound.catalog.indices.contains(index) else { return }
         playerService.selectAndPlay(at: index)
-        recentStore.record(Sound.catalog[index])
         displayedSoundIndex = index
         carousel.setSelectedSound(index: index, animated: animated)
         render()
@@ -307,6 +310,7 @@ final class HomeViewController: UIViewController {
     }
 
     private func render() {
+        coordinateRecentPlayback()
         let selectedIndex = playerService.selectedIndex
         let sound = playerService.currentSound
         displayedSoundIndex = selectedIndex
@@ -359,6 +363,17 @@ final class HomeViewController: UIViewController {
         }
     }
 
+    private func coordinateRecentPlayback() {
+        let selectedIndex = playerService.selectedIndex
+        if coordinatedRecentSelectionIndex != selectedIndex {
+            coordinatedRecentSelectionIndex = selectedIndex
+            hasRecordedCoordinatedSelection = false
+        }
+        guard playerService.isPlaying, !hasRecordedCoordinatedSelection else { return }
+        hasRecordedCoordinatedSelection = true
+        recentStore.record(playerService.currentSound)
+    }
+
     private func renderBackgroundTransition(from: Int, to: Int, progress: CGFloat) {
         guard Sound.catalog.indices.contains(from), Sound.catalog.indices.contains(to) else { return }
         setBackground(
@@ -372,23 +387,46 @@ final class HomeViewController: UIViewController {
             currentResource: &secondBackgroundResource
         )
         let clampedProgress = min(max(progress, 0), 1)
-        firstBackgroundImageView.alpha = 1 - clampedProgress
-        secondBackgroundImageView.alpha = clampedProgress
+        let crossfadeProgress = max((clampedProgress - 0.5) * 2, 0)
+        firstBackgroundImageView.alpha = 1 - crossfadeProgress
+        secondBackgroundImageView.alpha = crossfadeProgress
     }
 
     private func renderSettledBackground(for sound: Sound) {
-        setBackground(
-            sound,
-            on: firstBackgroundImageView,
-            currentResource: &firstBackgroundResource
-        )
-        setBackground(
-            sound,
-            on: secondBackgroundImageView,
-            currentResource: &secondBackgroundResource
-        )
-        firstBackgroundImageView.alpha = 1
-        secondBackgroundImageView.alpha = 0
+        let targetImageView: UIImageView
+        let sourceImageView: UIImageView
+        if firstBackgroundResource == sound.backgroundResource {
+            targetImageView = firstBackgroundImageView
+            sourceImageView = secondBackgroundImageView
+        } else if secondBackgroundResource == sound.backgroundResource {
+            targetImageView = secondBackgroundImageView
+            sourceImageView = firstBackgroundImageView
+        } else if firstBackgroundImageView.alpha <= secondBackgroundImageView.alpha {
+            setBackground(
+                sound,
+                on: firstBackgroundImageView,
+                currentResource: &firstBackgroundResource
+            )
+            targetImageView = firstBackgroundImageView
+            sourceImageView = secondBackgroundImageView
+        } else {
+            setBackground(
+                sound,
+                on: secondBackgroundImageView,
+                currentResource: &secondBackgroundResource
+            )
+            targetImageView = secondBackgroundImageView
+            sourceImageView = firstBackgroundImageView
+        }
+
+        UIView.animate(
+            withDuration: Self.backgroundSettleDuration,
+            delay: 0,
+            options: [.allowUserInteraction, .beginFromCurrentState, .curveEaseOut]
+        ) {
+            targetImageView.alpha = 1
+            sourceImageView.alpha = 0
+        }
     }
 
     private func setBackground(

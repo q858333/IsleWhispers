@@ -46,8 +46,9 @@ final class SoundCarouselCell: UICollectionViewCell {
 
     func applyTitleTreatment(centerDistance: CGFloat) {
         let distance = min(max(centerDistance, 0), 1)
-        titleLabel.alpha = 1 - 0.15 * distance
-        subtitleLabel.alpha = 1 - 0.35 * distance
+        let fadeProgress = distance * distance
+        titleLabel.alpha = 1 - 0.90 * fadeProgress
+        subtitleLabel.alpha = 1 - 0.96 * fadeProgress
     }
 
     private func setupViews() {

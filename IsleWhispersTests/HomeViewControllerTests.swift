@@ -8,6 +8,15 @@ final class HomeViewControllerTests: XCTestCase {
         let context = makeHomeContext()
         defer { context.cleanup() }
         layout(context.controller, size: CGSize(width: 390, height: 844))
+        var stateNotificationCount = 0
+        let observer = NotificationCenter.default.addObserver(
+            forName: .audioPlayerStateDidChange,
+            object: context.service,
+            queue: nil
+        ) { _ in
+            stateNotificationCount += 1
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
 
         let carousel = try XCTUnwrap(
             findSubview(InfiniteSoundCarousel.self, in: context.controller.view)
@@ -18,6 +27,68 @@ final class HomeViewControllerTests: XCTestCase {
         XCTAssertTrue(context.service.isPlaying)
         XCTAssertEqual(context.store.recentSounds.map(\.id), [Sound.catalog[4].id])
         XCTAssertEqual(context.controller.displayedSoundIndex, 4)
+        XCTAssertEqual(stateNotificationCount, 1)
+
+        carousel.settle(onPhysicalIndex: 19)
+        carousel.settle(onPhysicalIndex: 19)
+
+        XCTAssertEqual(stateNotificationCount, 1)
+        XCTAssertEqual(context.store.recentSounds.map(\.id), [Sound.catalog[4].id])
+    }
+
+    @MainActor
+    func testInitialPlayRecordsSelectedSound() throws {
+        let context = makeHomeContext()
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+        let play = try XCTUnwrap(findButton(label: "播放", in: context.controller.view))
+
+        play.sendActions(for: .touchUpInside)
+
+        XCTAssertTrue(context.service.isPlaying)
+        XCTAssertEqual(context.store.recentSounds.map(\.id), [Sound.catalog[2].id])
+    }
+
+    @MainActor
+    func testRemoteNextAndPreviousRecordEachPlayingSelectionWithoutStateReordering() throws {
+        let context = makeHomeContext()
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+        let play = try XCTUnwrap(findButton(label: "播放", in: context.controller.view))
+        play.sendActions(for: .touchUpInside)
+
+        XCTAssertEqual(context.service.performRemoteCommand(.next), .success)
+        XCTAssertEqual(
+            context.store.recentSounds.map(\.id),
+            [Sound.catalog[3].id, Sound.catalog[2].id]
+        )
+
+        XCTAssertEqual(context.service.performRemoteCommand(.previous), .success)
+        let recordedIDs = [Sound.catalog[2].id, Sound.catalog[3].id]
+        XCTAssertEqual(context.store.recentSounds.map(\.id), recordedIDs)
+
+        context.service.setMuted(true)
+        context.service.setSleepTimer(.minutes15)
+        context.service.pause()
+
+        XCTAssertEqual(context.store.recentSounds.map(\.id), recordedIDs)
+    }
+
+    @MainActor
+    func testPausedSelectionWaitsForSuccessfulPlaybackBeforeRecordingRecent() {
+        let context = makeHomeContext()
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+
+        context.service.next()
+
+        XCTAssertFalse(context.service.isPlaying)
+        XCTAssertTrue(context.store.recentSounds.isEmpty)
+
+        context.service.play()
+
+        XCTAssertTrue(context.service.isPlaying)
+        XCTAssertEqual(context.store.recentSounds.map(\.id), [Sound.catalog[3].id])
     }
 
     @MainActor
@@ -167,6 +238,81 @@ final class HomeViewControllerTests: XCTestCase {
         XCTAssertEqual(blur.alpha, 0.20, accuracy: 0.001)
         XCTAssertFalse(carousel.isDescendant(of: blur))
         XCTAssertGreaterThan(context.controller.view.subviews.firstIndex(of: carousel) ?? 0, 0)
+    }
+
+    @MainActor
+    func testBackgroundTransitionHoldsSourceUntilMidpointThenCrossfades() throws {
+        let context = makeHomeContext()
+        defer { context.cleanup() }
+        layout(context.controller, size: CGSize(width: 390, height: 844))
+        let backgrounds = context.controller.view.subviews.compactMap { $0 as? UIImageView }
+        let sourceBackground = try XCTUnwrap(backgrounds.first)
+        let targetBackground = try XCTUnwrap(backgrounds.dropFirst().first)
+        let carousel = try XCTUnwrap(
+            findSubview(InfiniteSoundCarousel.self, in: context.controller.view)
+        )
+        let collectionView = try XCTUnwrap(
+            carousel.subviews.compactMap { $0 as? UICollectionView }.first
+        )
+        let flowLayout = try XCTUnwrap(
+            collectionView.collectionViewLayout as? SoundCarouselFlowLayout
+        )
+        let from = try XCTUnwrap(
+            flowLayout.layoutAttributesForItem(at: IndexPath(item: 17, section: 0))
+        )
+        let to = try XCTUnwrap(
+            flowLayout.layoutAttributesForItem(at: IndexPath(item: 18, section: 0))
+        )
+        let pitch = to.center.x - from.center.x
+
+        collectionView.contentOffset.x = from.center.x + pitch * 0.4
+            - collectionView.bounds.width / 2
+        carousel.scrollViewDidScroll(collectionView)
+
+        XCTAssertEqual(sourceBackground.alpha, 1, accuracy: 0.01)
+        XCTAssertEqual(targetBackground.alpha, 0, accuracy: 0.01)
+
+        collectionView.contentOffset.x = from.center.x + pitch * 0.75
+            - collectionView.bounds.width / 2
+        carousel.scrollViewDidScroll(collectionView)
+
+        XCTAssertEqual(sourceBackground.alpha, 0.5, accuracy: 0.01)
+        XCTAssertEqual(targetBackground.alpha, 0.5, accuracy: 0.01)
+    }
+
+    @MainActor
+    func testCarouselTitlesAreClearNearCenterAndNearlyHiddenWhenAdjacent() throws {
+        let cell = SoundCarouselCell(frame: CGRect(x: 0, y: 0, width: 300, height: 420))
+        let sound = Sound.catalog[0]
+        cell.configure(sound: sound)
+        let title = try XCTUnwrap(allLabels(in: cell.contentView).first { $0.text == sound.title })
+        let subtitle = try XCTUnwrap(
+            allLabels(in: cell.contentView).first { $0.text == sound.subtitle }
+        )
+
+        cell.applyTitleTreatment(centerDistance: 0.2)
+        XCTAssertGreaterThanOrEqual(title.alpha, 0.9)
+        XCTAssertGreaterThanOrEqual(subtitle.alpha, 0.9)
+
+        cell.applyTitleTreatment(centerDistance: 1)
+        XCTAssertLessThanOrEqual(title.alpha, 0.2)
+        XCTAssertLessThanOrEqual(subtitle.alpha, 0.1)
+    }
+
+    @MainActor
+    func testSettledBackgroundUsesShortSimpleFadeDuration() {
+        XCTAssertGreaterThanOrEqual(HomeViewController.backgroundSettleDuration, 0.20)
+        XCTAssertLessThanOrEqual(HomeViewController.backgroundSettleDuration, 0.30)
+    }
+
+    @MainActor
+    func testSoundArtworkReusesImageForSameResolvedResourceURL() throws {
+        let first = try XCTUnwrap(SoundArtwork.image(for: Sound.catalog[0]))
+        let repeated = try XCTUnwrap(SoundArtwork.image(for: Sound.catalog[0]))
+        let different = try XCTUnwrap(SoundArtwork.image(for: Sound.catalog[1]))
+
+        XCTAssertTrue(first === repeated)
+        XCTAssertFalse(first === different)
     }
 
     @MainActor
