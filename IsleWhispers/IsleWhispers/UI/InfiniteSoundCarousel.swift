@@ -54,7 +54,9 @@ final class InfiniteSoundCarousel: UIView {
 
     func setSelectedSound(index: Int, animated: Bool) {
         let target = indexing.centeredPhysicalIndex(for: index)
-        let shouldAnimate = animated && !UIAccessibility.isReduceMotionEnabled
+        let shouldAnimate = animated
+            && !UIAccessibility.isReduceMotionEnabled
+            && canAnimateScroll(to: target)
         scrollToPhysicalItem(target, animated: shouldAnimate)
         if !shouldAnimate {
             settle(onPhysicalIndex: target)
@@ -114,6 +116,19 @@ final class InfiniteSoundCarousel: UIView {
             at: .centeredHorizontally,
             animated: animated
         )
+    }
+
+    private func canAnimateScroll(to physicalIndex: Int) -> Bool {
+        guard collectionView.window != nil,
+              collectionView.bounds.width > 0,
+              collectionView.bounds.height > 0,
+              let attributes = flowLayout.layoutAttributesForItem(
+                  at: IndexPath(item: physicalIndex, section: 0)
+              ) else {
+            return false
+        }
+        let targetOffsetX = attributes.center.x - collectionView.bounds.width / 2
+        return abs(targetOffsetX - collectionView.contentOffset.x) > 0.5
     }
 
     private func closestPhysicalIndex() -> Int {

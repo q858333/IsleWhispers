@@ -52,6 +52,19 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
+    func testAnimatedSelectionWithoutUsableLayoutSettlesSynchronously() {
+        let carousel = InfiniteSoundCarousel(sounds: Sound.catalog, selectedIndex: 2)
+        var settled: [Int] = []
+        carousel.onSettled = { settled.append($0) }
+
+        carousel.setSelectedSound(index: 5, animated: true)
+
+        XCTAssertEqual(carousel.displayedLogicalIndex, 5)
+        XCTAssertEqual(carousel.accessibilityValue, "风声，6 / 15")
+        XCTAssertEqual(settled, [5])
+    }
+
+    @MainActor
     func testAccessibilityScrollsLogicallyAcrossCatalogBoundary() {
         let carousel = makeCarousel(selectedIndex: 14)
         var settled: [Int] = []
