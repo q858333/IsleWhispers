@@ -1,3 +1,4 @@
+import ObjectiveC
 import UIKit
 import XCTest
 @testable import IsleWhispers
@@ -183,6 +184,31 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             Date(timeIntervalSince1970: 1_900)
         )
         XCTAssertTrue(waitForDismissal(of: context.controller))
+    }
+
+    @MainActor
+    func testRapidSoundPickerTapsKeepOnlyFirstPresentedLibrary() throws {
+        let context = makeFocusContext()
+        defer { context.cleanup() }
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+        let switchButton = try XCTUnwrap(
+            findButton(labelPrefix: "切换声音", in: context.controller.view)
+        )
+        PresentationCallTracker.start(target: context.controller)
+        defer { PresentationCallTracker.stop() }
+
+        switchButton.sendActions(for: .touchUpInside)
+        let firstNavigation = try XCTUnwrap(
+            context.controller.presentedViewController as? UINavigationController
+        )
+        switchButton.sendActions(for: .touchUpInside)
+
+        XCTAssertEqual(PresentationCallTracker.callCount, 1)
+        XCTAssertTrue(context.controller.presentedViewController === firstNavigation)
     }
 
     @MainActor
@@ -424,5 +450,56 @@ private struct FocusContext {
 
     func advanceNow(by interval: TimeInterval) {
         clock.now = clock.now.addingTimeInterval(interval)
+    }
+}
+
+@MainActor
+private enum PresentationCallTracker {
+    static weak var target: UIViewController?
+    static var callCount = 0
+
+    static func start(target: UIViewController) {
+        self.target = target
+        callCount = 0
+        exchangePresentImplementations()
+    }
+
+    static func stop() {
+        exchangePresentImplementations()
+        target = nil
+        callCount = 0
+    }
+
+    static func recordPresentation(from controller: UIViewController) {
+        guard controller === target else { return }
+        callCount += 1
+    }
+
+    private static func exchangePresentImplementations() {
+        let original = class_getInstanceMethod(
+            UIViewController.self,
+            #selector(UIViewController.present(_:animated:completion:))
+        )
+        let tracked = class_getInstanceMethod(
+            UIViewController.self,
+            #selector(UIViewController.task4_present(_:animated:completion:))
+        )
+        guard let original, let tracked else { return }
+        method_exchangeImplementations(original, tracked)
+    }
+}
+
+extension UIViewController {
+    @objc fileprivate func task4_present(
+        _ viewControllerToPresent: UIViewController,
+        animated flag: Bool,
+        completion: (() -> Void)? = nil
+    ) {
+        PresentationCallTracker.recordPresentation(from: self)
+        task4_present(
+            viewControllerToPresent,
+            animated: flag,
+            completion: completion
+        )
     }
 }

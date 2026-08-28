@@ -371,6 +371,7 @@ final class FocusPlaybackViewController: UIViewController {
     }
 
     @objc private func didTapSoundPicker() {
+        guard presentedViewController == nil else { return }
         let library = SoundLibraryViewController(selectedSoundID: playerService.currentSound.id)
         let navigation = UINavigationController(rootViewController: library)
         library.navigationItem.rightBarButtonItem = UIBarButtonItem(
