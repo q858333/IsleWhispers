@@ -85,6 +85,37 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         XCTAssertTrue(context.service.isPlaying)
         XCTAssertEqual(context.service.sleepTimerPhase, .expired)
         XCTAssertEqual(context.controller.countdownTextForTesting, "00:00")
+        XCTAssertNotNil(findButton(label: "关闭播放页", in: context.controller.view))
+    }
+
+    @MainActor
+    func testLoadingRunningTimerOffscreenDoesNotStartDisplayTimer() {
+        let context = makeFocusContext()
+        defer { context.cleanup() }
+        context.service.play()
+        context.service.setSleepTimer(.minutes15)
+
+        context.controller.loadViewIfNeeded()
+
+        XCTAssertFalse(context.controller.hasDisplayTimerForTesting)
+    }
+
+    @MainActor
+    func testPlayerNotificationAfterDisappearDoesNotRestartDisplayTimer() {
+        let context = makeFocusContext()
+        defer { context.cleanup() }
+        context.service.play()
+        context.service.setSleepTimer(.minutes15)
+        context.controller.loadViewIfNeeded()
+        context.controller.viewWillAppear(false)
+        XCTAssertTrue(context.controller.hasDisplayTimerForTesting)
+
+        context.controller.viewDidDisappear(false)
+        XCTAssertFalse(context.controller.hasDisplayTimerForTesting)
+
+        context.service.setSleepTimer(.minutes30)
+
+        XCTAssertFalse(context.controller.hasDisplayTimerForTesting)
     }
 
     @MainActor

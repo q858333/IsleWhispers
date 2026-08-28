@@ -23,6 +23,7 @@ final class FocusPlaybackViewController: UIViewController {
     private let statusStack = UIStackView()
     private var displayTimer: Timer?
     private var displayedBackgroundResource: String?
+    private var isVisible = false
 
     init(playerService: AudioPlayerService, onSelectSound: @escaping (Int) -> Void) {
         self.playerService = playerService
@@ -55,11 +56,13 @@ final class FocusPlaybackViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        isVisible = true
         render()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        isVisible = false
         invalidateDisplayTimer()
     }
 
@@ -72,6 +75,10 @@ final class FocusPlaybackViewController: UIViewController {
 
     var countdownTextForTesting: String {
         countdownText()
+    }
+
+    var hasDisplayTimerForTesting: Bool {
+        displayTimer != nil
     }
 
     func refreshForTesting() {
@@ -273,6 +280,7 @@ final class FocusPlaybackViewController: UIViewController {
         updateCountdownPresentation()
 
         let playing = playerService.isPlaying
+        let hasError = playerService.statusMessage != Self.readyStatus
         primaryControlButton.accessibilityLabel = playing ? "暂停播放" : "继续播放"
         primaryControlButton.setImage(
             UIImage(
@@ -284,10 +292,10 @@ final class FocusPlaybackViewController: UIViewController {
             ),
             for: .normal
         )
-        closeButton.isHidden = playing
-        closeButton.accessibilityElementsHidden = playing
+        let shouldShowClose = !playing || hasError || playerService.sleepTimerPhase == .expired
+        closeButton.isHidden = !shouldShowClose
+        closeButton.accessibilityElementsHidden = !shouldShowClose
 
-        let hasError = playerService.statusMessage != Self.readyStatus
         statusLabel.text = hasError ? playerService.statusMessage : nil
         statusStack.isHidden = !hasError
         statusLabel.isHidden = !hasError
@@ -334,7 +342,7 @@ final class FocusPlaybackViewController: UIViewController {
     }
 
     private func updateDisplayTimer() {
-        guard case .running = playerService.sleepTimerPhase else {
+        guard isVisible, case .running = playerService.sleepTimerPhase else {
             invalidateDisplayTimer()
             return
         }
