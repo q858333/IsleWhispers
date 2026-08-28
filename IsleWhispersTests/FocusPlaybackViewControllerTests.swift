@@ -16,11 +16,10 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             findLabel(identifier: "focusSoundTitle", in: context.controller.view)?.text,
             context.service.currentSound.title
         )
-        XCTAssertEqual(
-            findLabel(identifier: "focusCountdown", in: context.controller.view)?.text,
-            "15:00",
-            "countdown labels: \(matchingLabelTexts(identifier: "focusCountdown", in: context.controller.view))"
+        let countdownButton = try XCTUnwrap(
+            findView(identifier: "focusCountdown", in: context.controller.view) as? UIButton
         )
+        XCTAssertEqual(countdownButton.currentTitle, "15:00")
         XCTAssertNotNil(findButton(label: "暂停播放", in: context.controller.view))
         XCTAssertNil(findButton(label: "关闭播放页", in: context.controller.view))
         let blur = try XCTUnwrap(
@@ -56,7 +55,12 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         let context = makeFocusContext()
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
-        XCTAssertEqual(context.controller.countdownTextForTesting, "∞")
+        let countdownButton = findView(
+            identifier: "focusCountdown",
+            in: context.controller.view
+        ) as? UIButton
+        XCTAssertEqual(countdownButton?.currentTitle, "∞")
+        XCTAssertEqual(countdownButton?.accessibilityValue, "不限时")
 
         context.service.play()
         context.controller.selectTimerForTesting(.minutes15)
@@ -64,8 +68,30 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         context.service.reconcileSleepTimer()
         context.controller.refreshForTesting()
 
-        XCTAssertEqual(context.controller.countdownTextForTesting, "00:00")
+        XCTAssertEqual(countdownButton?.currentTitle, "00:00")
+        XCTAssertEqual(countdownButton?.accessibilityValue, "倒计时已结束")
         XCTAssertFalse(context.service.isPlaying)
+    }
+
+    @MainActor
+    func testCountdownKeepsVisualClockAndUsesChineseVoiceOverDuration() throws {
+        let context = makeFocusContext()
+        defer { context.cleanup() }
+        context.service.play()
+        context.service.setSleepTimer(.minutes15)
+        context.controller.loadViewIfNeeded()
+        let countdownButton = try XCTUnwrap(
+            findView(identifier: "focusCountdown", in: context.controller.view) as? UIButton
+        )
+
+        XCTAssertEqual(countdownButton.currentTitle, "15:00")
+        XCTAssertEqual(countdownButton.accessibilityValue, "剩余 15 分钟")
+
+        context.advanceNow(by: 1)
+        context.controller.refreshForTesting()
+
+        XCTAssertEqual(countdownButton.currentTitle, "14:59")
+        XCTAssertEqual(countdownButton.accessibilityValue, "剩余 14 分 59 秒")
     }
 
     @MainActor
@@ -142,16 +168,16 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         defer { context.cleanup() }
         context.service.play()
         context.service.setSleepTimer(.minutes15)
-        context.advanceNow(by: 60)
+        context.advanceNow(by: 100.25)
+        context.service.pause()
         XCTAssertEqual(
             try XCTUnwrap(context.service.sleepTimerRemaining),
-            840,
+            799.75,
             accuracy: 0.001
         )
-        XCTAssertEqual(
-            context.scheduler.scheduledDate,
-            Date(timeIntervalSince1970: 1_900)
-        )
+        XCTAssertNil(context.scheduler.scheduledDate)
+        XCTAssertEqual(context.scheduler.scheduledDates, [Date(timeIntervalSince1970: 1_900)])
+        context.advanceNow(by: 899.75)
         let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
         window.rootViewController = context.controller
         window.makeKeyAndVisible()
@@ -176,12 +202,19 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         XCTAssertEqual(context.service.sleepTimerOption, .minutes15)
         XCTAssertEqual(
             try XCTUnwrap(context.service.sleepTimerRemaining),
-            840,
+            799.75,
             accuracy: 0.001
         )
         XCTAssertEqual(
             context.scheduler.scheduledDate,
-            Date(timeIntervalSince1970: 1_900)
+            Date(timeIntervalSince1970: 2_799.75)
+        )
+        XCTAssertEqual(
+            context.scheduler.scheduledDates,
+            [
+                Date(timeIntervalSince1970: 1_900),
+                Date(timeIntervalSince1970: 2_799.75)
+            ]
         )
         XCTAssertTrue(waitForDismissal(of: context.controller))
     }
@@ -370,14 +403,6 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    private func matchingLabelTexts(identifier: String, in root: UIView) -> [String] {
-        descendants(in: root)
-            .compactMap { $0 as? UILabel }
-            .filter { $0.accessibilityIdentifier == identifier }
-            .compactMap(\.text)
-    }
-
-    @MainActor
     private func findButton(label: String, in root: UIView) -> UIButton? {
         descendants(in: root)
             .compactMap { $0 as? UIButton }
@@ -425,6 +450,7 @@ private final class FocusPlaybackEndNotificationSchedulerSpy:
     PlaybackEndNotificationScheduling {
     private(set) var authorizationRequestCount = 0
     private(set) var scheduledDate: Date?
+    private(set) var scheduledDates: [Date] = []
 
     func requestAuthorization() {
         authorizationRequestCount += 1
@@ -432,6 +458,7 @@ private final class FocusPlaybackEndNotificationSchedulerSpy:
 
     func schedulePlaybackEnd(at deadline: Date) {
         scheduledDate = deadline
+        scheduledDates.append(deadline)
     }
 
     func cancelPlaybackEnd() {

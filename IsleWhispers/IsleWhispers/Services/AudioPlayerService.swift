@@ -261,6 +261,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        pauseSleepTimerIfNeeded()
         self.player = nil
         state.isPlaying = false
         statusMessage = "音频解码失败"
@@ -438,6 +439,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         switch type {
         case .began:
             shouldResumeAfterInterruption = isPlaying
+            pauseSleepTimerIfNeeded()
             stopPlayback(
                 releasingSystemOwnership: false,
                 cancellingInterruptionResume: false
@@ -449,7 +451,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             guard !expireSleepTimerIfNeeded() else { return }
             shouldResumeAfterInterruption = false
             if shouldResume {
-                _ = attemptPlay(preservingInterruptionIntent: true)
+                if attemptPlay(preservingInterruptionIntent: true) {
+                    resumeSleepTimerIfNeeded()
+                    publishState()
+                }
             } else {
                 releaseSystemPlaybackOwnership()
             }
@@ -464,6 +469,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             AVAudioSession.RouteChangeReason(rawValue: rawReason) == .oldDeviceUnavailable
         else { return }
 
+        pauseSleepTimerIfNeeded()
         stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
     }
 

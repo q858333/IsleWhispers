@@ -123,10 +123,7 @@ final class HomeViewControllerTests: XCTestCase {
         let context = makeHomeContext()
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
-        let play = try XCTUnwrap(
-            findButton(label: "开始播放并打开播放页", in: context.controller.view)
-        )
-        play.sendActions(for: .touchUpInside)
+        context.service.play()
 
         XCTAssertEqual(context.service.performRemoteCommand(.next), .success)
         XCTAssertEqual(

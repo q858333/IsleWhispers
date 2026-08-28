@@ -312,16 +312,28 @@ final class FocusPlaybackViewController: UIViewController {
     private func updateCountdownPresentation() {
         let text = countdownText()
         countdownButton.setTitle(text, for: .normal)
-        countdownButton.titleLabel?.text = text
         countdownButton.titleLabel?.accessibilityIdentifier = "focusCountdown"
         switch playerService.sleepTimerPhase {
         case .unlimited:
             countdownButton.accessibilityValue = "不限时"
         case .running, .paused:
-            countdownButton.accessibilityValue = "剩余 \(text)"
+            countdownButton.accessibilityValue = "剩余 \(countdownAccessibilityDuration())"
         case .expired:
             countdownButton.accessibilityValue = "倒计时已结束"
         }
+    }
+
+    private func countdownAccessibilityDuration() -> String {
+        let totalSeconds = Int(ceil(max(playerService.sleepTimerRemaining ?? 0, 0)))
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        if seconds == 0 {
+            return "\(minutes) 分钟"
+        }
+        if minutes == 0 {
+            return "\(seconds) 秒"
+        }
+        return "\(minutes) 分 \(seconds) 秒"
     }
 
     private func updateBackground(for sound: Sound) {
