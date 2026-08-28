@@ -21,7 +21,9 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         let target: Any
     }
 
-    static let shared = AudioPlayerService()
+    static let shared = AudioPlayerService(
+        notificationScheduler: LocalPlaybackEndNotificationScheduler()
+    )
     static let selectedSoundDefaultsKey = "selectedSoundIndex"
 
     private(set) var state: PlaybackState
@@ -34,12 +36,17 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     var currentSound: Sound { Sound.catalog[selectedIndex] }
     var isPlaying: Bool { state.isPlaying }
     var sleepTimerOption: SleepTimerOption { sleepTimerState.option }
+    var sleepTimerPhase: SleepTimerPhase { sleepTimerState.phase }
+    var sleepTimerRemaining: TimeInterval? {
+        sleepTimerState.remainingTime(at: nowProvider())
+    }
 
     private let defaults: UserDefaults
     private let configureSystemIntegration: Bool
     private let resourceBundle: Bundle
     private let notificationCenter: NotificationCenter
     private let nowProvider: () -> Date
+    private let notificationScheduler: PlaybackEndNotificationScheduling?
     private let shouldObserveSystemNotifications: Bool
     private var sleepTimer: Timer?
     private var shouldResumeAfterInterruption = false
@@ -54,7 +61,8 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         resourceBundle: Bundle = .main,
         notificationCenter: NotificationCenter = .default,
         observeSystemNotifications: Bool? = nil,
-        nowProvider: @escaping () -> Date = Date.init
+        nowProvider: @escaping () -> Date = Date.init,
+        notificationScheduler: PlaybackEndNotificationScheduling? = nil
     ) {
         let restoredIndex = defaults.object(forKey: Self.selectedSoundDefaultsKey) as? Int
         let selectedIndex = restoredIndex.flatMap { Sound.catalog.indices.contains($0) ? $0 : nil } ?? 2
@@ -66,6 +74,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         self.shouldObserveSystemNotifications =
             observeSystemNotifications ?? configureSystemIntegration
         self.nowProvider = nowProvider
+        self.notificationScheduler = notificationScheduler
         state = PlaybackState(selectedIndex: selectedIndex, isPlaying: false)
         super.init()
 
@@ -82,6 +91,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
     deinit {
         sleepTimer?.invalidate()
+        let notificationScheduler = notificationScheduler
+        Task { @MainActor in
+            notificationScheduler?.cancelPlaybackEnd()
+        }
         for observer in systemNotificationObservers {
             notificationCenter.removeObserver(observer)
         }
@@ -122,7 +135,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     func play() {
-        _ = attemptPlay()
+        resumeSleepTimerIfNeeded()
+        if !attemptPlay() {
+            pauseSleepTimerIfNeeded()
+        }
     }
 
     @discardableResult
@@ -168,6 +184,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     func pause() {
+        pauseSleepTimerIfNeeded()
         stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
     }
 
@@ -216,25 +233,30 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     func setSleepTimer(_ option: SleepTimerOption) {
-        sleepTimer?.invalidate()
-
         let now = nowProvider()
         sleepTimerState.schedule(option, now: now)
-        if let deadline = sleepTimerState.deadline {
-            armSleepTimer(after: deadline.timeIntervalSince(now))
+        if option != .unlimited {
+            notificationScheduler?.requestAuthorization()
         }
+        if !isPlaying {
+            sleepTimerState.pause(at: now)
+        }
+        replaceSleepTimerSchedule()
         publishState()
+    }
+
+    func clearSleepTimer() {
+        setSleepTimer(.unlimited)
     }
 
     func reconcileSleepTimer() {
         sleepTimer?.invalidate()
+        sleepTimer = nil
 
-        let now = nowProvider()
-        if sleepTimerState.isExpired(at: now) {
-            sleepTimerState.schedule(.unlimited, now: now)
+        if sleepTimerState.expireIfNeeded(at: nowProvider()) {
             stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
         } else if let deadline = sleepTimerState.deadline {
-            armSleepTimer(after: deadline.timeIntervalSince(now))
+            armSleepTimer(after: deadline.timeIntervalSince(nowProvider()))
         }
     }
 
@@ -299,6 +321,32 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             userInfo: nil,
             repeats: false
         )
+    }
+
+    private func replaceSleepTimerSchedule() {
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        notificationScheduler?.cancelPlaybackEnd()
+        guard let deadline = sleepTimerState.deadline else { return }
+        armSleepTimer(after: deadline.timeIntervalSince(nowProvider()))
+        notificationScheduler?.schedulePlaybackEnd(at: deadline)
+    }
+
+    private func pauseSleepTimerIfNeeded() {
+        guard case .running = sleepTimerState.phase else { return }
+        sleepTimerState.pause(at: nowProvider())
+        if case .expired = sleepTimerState.phase {
+            sleepTimer?.invalidate()
+            sleepTimer = nil
+            return
+        }
+        replaceSleepTimerSchedule()
+    }
+
+    private func resumeSleepTimerIfNeeded() {
+        guard case .paused = sleepTimerState.phase else { return }
+        sleepTimerState.resume(at: nowProvider())
+        replaceSleepTimerSchedule()
     }
 
     private func configureAudioSession() {
@@ -421,12 +469,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
     @discardableResult
     private func expireSleepTimerIfNeeded() -> Bool {
-        let now = nowProvider()
-        guard sleepTimerState.isExpired(at: now) else { return false }
+        guard sleepTimerState.expireIfNeeded(at: nowProvider()) else { return false }
 
         sleepTimer?.invalidate()
         sleepTimer = nil
-        sleepTimerState.schedule(.unlimited, now: now)
         stopPlayback(releasingSystemOwnership: true, cancellingInterruptionResume: true)
         return true
     }

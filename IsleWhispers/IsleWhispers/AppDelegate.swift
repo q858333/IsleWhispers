@@ -6,12 +6,24 @@
 //
 
 import UIKit
+import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UIView.appearance().tintColor = AppTheme.accent
+        UNUserNotificationCenter.current().delegate = self
         return true
+    }
+
+    static let foregroundNotificationOptions: UNNotificationPresentationOptions = [.banner, .sound]
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler(Self.foregroundNotificationOptions)
     }
 
     // MARK: UISceneSession Lifecycle

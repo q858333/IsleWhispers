@@ -88,7 +88,8 @@ final class AudioPlayerPersistenceTests: XCTestCase {
         service.handleAudioSessionInterruption(interruption(.ended, shouldResume: true))
 
         XCTAssertFalse(service.isPlaying)
-        XCTAssertEqual(service.sleepTimerOption, .unlimited)
+        XCTAssertEqual(service.sleepTimerOption, .minutes15)
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
         defaults.removePersistentDomain(forName: suite)
     }
 
@@ -162,12 +163,15 @@ final class AudioPlayerPersistenceTests: XCTestCase {
             configureSystemIntegration: false,
             nowProvider: { now }
         )
+        service.play()
         service.setSleepTimer(.minutes15)
         now = now.addingTimeInterval(900)
 
         XCTAssertEqual(service.performRemoteCommand(.play), .commandFailed)
         XCTAssertFalse(service.isPlaying)
-        XCTAssertEqual(service.sleepTimerOption, .unlimited)
+        XCTAssertEqual(service.sleepTimerOption, .minutes15)
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
+        XCTAssertEqual(service.performRemoteCommand(.play), .success)
         defaults.removePersistentDomain(forName: suite)
     }
 
@@ -295,6 +299,133 @@ final class AudioPlayerPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testPlayingFiniteTimerPausesAndReschedulesOneNotification() {
+        let suite = "AudioTimerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+
+        XCTAssertEqual(scheduler.authorizationRequestCount, 1)
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 1_900))
+
+        now = Date(timeIntervalSince1970: 1_100)
+        service.pause()
+        XCTAssertEqual(service.sleepTimerPhase, .paused(remaining: 800))
+        XCTAssertNil(scheduler.scheduledDate)
+
+        now = Date(timeIntervalSince1970: 2_000)
+        service.play()
+        XCTAssertEqual(service.sleepTimerPhase, .running(deadline: Date(timeIntervalSince1970: 2_800)))
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 2_800))
+    }
+
+    @MainActor
+    func testFiniteTimerSelectedWhilePausedWaitsToScheduleUntilPlayback() {
+        let (service, defaults, suite, scheduler) = makeTimerService(
+            now: Date(timeIntervalSince1970: 1_000)
+        )
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        service.setSleepTimer(.minutes15)
+        XCTAssertEqual(service.sleepTimerPhase, .paused(remaining: 900))
+        XCTAssertEqual(scheduler.authorizationRequestCount, 1)
+        XCTAssertNil(scheduler.scheduledDate)
+
+        service.play()
+        XCTAssertEqual(service.sleepTimerPhase, .running(deadline: Date(timeIntervalSince1970: 1_900)))
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 1_900))
+    }
+
+    @MainActor
+    func testTimerExpiryPausesOnceAndKeepsZeroState() {
+        let suite = "AudioTimerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        now = Date(timeIntervalSince1970: 1_900)
+
+        service.reconcileSleepTimer()
+        service.reconcileSleepTimer()
+
+        XCTAssertFalse(service.isPlaying)
+        XCTAssertEqual(service.sleepTimerOption, .minutes15)
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
+        XCTAssertEqual(service.sleepTimerRemaining, 0)
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 1_900))
+
+        service.play()
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 1_900))
+    }
+
+    @MainActor
+    func testChangingFiniteTimerReplacesDeadlineAndRemoteCommandsPauseIt() {
+        let suite = "AudioTimerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        now = Date(timeIntervalSince1970: 1_100)
+        service.setSleepTimer(.minutes30)
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 2_900))
+
+        XCTAssertEqual(service.performRemoteCommand(.pause), .success)
+        XCTAssertEqual(service.sleepTimerPhase, .paused(remaining: 1_800))
+        XCTAssertNil(scheduler.scheduledDate)
+        XCTAssertEqual(service.performRemoteCommand(.play), .success)
+        XCTAssertEqual(service.sleepTimerPhase, .running(deadline: Date(timeIntervalSince1970: 2_900)))
+    }
+
+    @MainActor
+    func testDeniedNotificationSchedulingDoesNotBlockTimerExpiry() {
+        let suite = "AudioTimerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        scheduler.allowsScheduling = false
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        now = Date(timeIntervalSince1970: 1_900)
+        service.reconcileSleepTimer()
+
+        XCTAssertFalse(service.isPlaying)
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
+        XCTAssertNil(scheduler.scheduledDate)
+    }
+
+    @MainActor
     private func makeService() -> (AudioPlayerService, UserDefaults, String) {
         let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -302,6 +433,26 @@ final class AudioPlayerPersistenceTests: XCTestCase {
             AudioPlayerService(defaults: defaults, configureSystemIntegration: false),
             defaults,
             suite
+        )
+    }
+
+    @MainActor
+    private func makeTimerService(
+        now: Date
+    ) -> (AudioPlayerService, UserDefaults, String, PlaybackEndNotificationSchedulerSpy) {
+        let suite = "AudioTimerTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        return (
+            AudioPlayerService(
+                defaults: defaults,
+                configureSystemIntegration: false,
+                nowProvider: { now },
+                notificationScheduler: scheduler
+            ),
+            defaults,
+            suite,
+            scheduler
         )
     }
 
@@ -318,5 +469,26 @@ final class AudioPlayerPersistenceTests: XCTestCase {
                     : 0
             ]
         )
+    }
+}
+
+@MainActor
+private final class PlaybackEndNotificationSchedulerSpy: PlaybackEndNotificationScheduling {
+    private(set) var authorizationRequestCount = 0
+    private(set) var scheduledDate: Date?
+    var allowsScheduling = true
+
+    func requestAuthorization() {
+        authorizationRequestCount += 1
+    }
+
+    func schedulePlaybackEnd(at deadline: Date) {
+        if allowsScheduling {
+            scheduledDate = deadline
+        }
+    }
+
+    func cancelPlaybackEnd() {
+        scheduledDate = nil
     }
 }
