@@ -90,6 +90,7 @@ final class HomeViewController: UIViewController {
         [firstBackgroundImageView, secondBackgroundImageView].forEach { imageView in
             imageView.contentMode = .scaleAspectFill
             imageView.clipsToBounds = true
+            imageView.layer.cornerCurve = .continuous
             imageView.isAccessibilityElement = false
             imageView.isUserInteractionEnabled = false
             view.addSubview(imageView)
@@ -387,9 +388,34 @@ final class HomeViewController: UIViewController {
             currentResource: &secondBackgroundResource
         )
         let clampedProgress = min(max(progress, 0), 1)
-        let crossfadeProgress = max((clampedProgress - 0.5) * 2, 0)
-        firstBackgroundImageView.alpha = 1 - crossfadeProgress
-        secondBackgroundImageView.alpha = crossfadeProgress
+        let pageWidth = view.bounds.width
+        let minimumScale: CGFloat = 0.9
+        let scaleRange = 1 - minimumScale
+        let maximumCornerRadius: CGFloat = 28
+
+        let sourceScale = 1 - scaleRange * clampedProgress
+        firstBackgroundImageView.transform = CGAffineTransform(
+            a: sourceScale,
+            b: 0,
+            c: 0,
+            d: sourceScale,
+            tx: -pageWidth * clampedProgress,
+            ty: 0
+        )
+        firstBackgroundImageView.layer.cornerRadius = maximumCornerRadius * clampedProgress
+
+        let targetScale = minimumScale + scaleRange * clampedProgress
+        secondBackgroundImageView.transform = CGAffineTransform(
+            a: targetScale,
+            b: 0,
+            c: 0,
+            d: targetScale,
+            tx: pageWidth * (1 - clampedProgress),
+            ty: 0
+        )
+        secondBackgroundImageView.layer.cornerRadius = maximumCornerRadius * (1 - clampedProgress)
+        firstBackgroundImageView.alpha = 1
+        secondBackgroundImageView.alpha = 1
     }
 
     private func renderSettledBackground(for sound: Sound) {
@@ -425,7 +451,11 @@ final class HomeViewController: UIViewController {
             options: [.allowUserInteraction, .beginFromCurrentState, .curveEaseOut]
         ) {
             targetImageView.alpha = 1
+            targetImageView.transform = .identity
+            targetImageView.layer.cornerRadius = 0
             sourceImageView.alpha = 0
+            sourceImageView.transform = .identity
+            sourceImageView.layer.cornerRadius = 0
         }
     }
 
