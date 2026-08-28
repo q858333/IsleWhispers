@@ -223,7 +223,7 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundSoftnessStaysBehindCrispCarousel() throws {
+    func testBackgroundSoftnessStaysBehindTransparentPagingSurface() throws {
         let context = makeHomeContext()
         defer { context.cleanup() }
         layout(context.controller, size: CGSize(width: 390, height: 844))
@@ -278,25 +278,6 @@ final class HomeViewControllerTests: XCTestCase {
 
         XCTAssertEqual(sourceBackground.alpha, 0.5, accuracy: 0.01)
         XCTAssertEqual(targetBackground.alpha, 0.5, accuracy: 0.01)
-    }
-
-    @MainActor
-    func testCarouselTitlesAreClearNearCenterAndNearlyHiddenWhenAdjacent() throws {
-        let cell = SoundCarouselCell(frame: CGRect(x: 0, y: 0, width: 300, height: 420))
-        let sound = Sound.catalog[0]
-        cell.configure(sound: sound)
-        let title = try XCTUnwrap(allLabels(in: cell.contentView).first { $0.text == sound.title })
-        let subtitle = try XCTUnwrap(
-            allLabels(in: cell.contentView).first { $0.text == sound.subtitle }
-        )
-
-        cell.applyTitleTreatment(centerDistance: 0.2)
-        XCTAssertGreaterThanOrEqual(title.alpha, 0.9)
-        XCTAssertGreaterThanOrEqual(subtitle.alpha, 0.9)
-
-        cell.applyTitleTreatment(centerDistance: 1)
-        XCTAssertLessThanOrEqual(title.alpha, 0.2)
-        XCTAssertLessThanOrEqual(subtitle.alpha, 0.1)
     }
 
     @MainActor

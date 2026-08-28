@@ -5,10 +5,12 @@ final class SoundCarouselFlowLayout: UICollectionViewFlowLayout {
         super.prepare()
         guard let collectionView else { return }
         scrollDirection = .horizontal
-        minimumLineSpacing = 12
-        let width = max(collectionView.bounds.width - 56, 1)
-        itemSize = CGSize(width: width, height: collectionView.bounds.height)
-        sectionInset = UIEdgeInsets(top: 0, left: 28, bottom: 0, right: 28)
+        minimumLineSpacing = 0
+        itemSize = CGSize(
+            width: max(collectionView.bounds.width, 1),
+            height: collectionView.bounds.height
+        )
+        sectionInset = .zero
     }
 
     override func shouldInvalidateLayout(forBoundsChange newBounds: CGRect) -> Bool {

@@ -13,6 +13,25 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
+    func testDirectBackgroundPagingUsesFullWidthEmptyPages() throws {
+        let carousel = makeCarousel(selectedIndex: 2)
+        let collectionView = try XCTUnwrap(
+            carousel.subviews.compactMap { $0 as? UICollectionView }.first
+        )
+        let layout = try XCTUnwrap(collectionView.collectionViewLayout as? SoundCarouselFlowLayout)
+        let page = carousel.collectionView(
+            collectionView,
+            cellForItemAt: IndexPath(item: carousel.centeredPhysicalIndex, section: 0)
+        )
+
+        XCTAssertEqual(layout.itemSize.width, 390, accuracy: 0.5)
+        XCTAssertEqual(layout.minimumLineSpacing, 0, accuracy: 0.5)
+        XCTAssertEqual(layout.sectionInset, .zero)
+        XCTAssertTrue(page.contentView.subviews.isEmpty)
+        XCTAssertEqual(page.contentView.layer.cornerRadius, 0, accuracy: 0.5)
+    }
+
+    @MainActor
     func testSettlingNewSoundReportsOnceAndRecentersOuterSegment() {
         let carousel = makeCarousel(selectedIndex: 2)
         var settled: [Int] = []

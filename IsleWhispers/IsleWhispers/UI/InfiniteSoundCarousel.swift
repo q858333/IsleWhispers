@@ -2,6 +2,8 @@ import SnapKit
 import UIKit
 
 final class InfiniteSoundCarousel: UIView {
+    private static let pageReuseIdentifier = "InfiniteSoundCarouselPage"
+
     var onSettled: ((Int) -> Void)?
     var onTransition: ((_ from: Int, _ to: Int, _ progress: CGFloat) -> Void)?
 
@@ -49,7 +51,7 @@ final class InfiniteSoundCarousel: UIView {
         flowLayout.invalidateLayout()
         collectionView.layoutIfNeeded()
         scrollToPhysicalItem(centeredPhysicalIndex, animated: false)
-        updateVisibleCellTreatmentAndTransition()
+        updateBackgroundTransition()
     }
 
     func setSelectedSound(index: Int, animated: Bool) {
@@ -95,8 +97,8 @@ final class InfiniteSoundCarousel: UIView {
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.register(
-            SoundCarouselCell.self,
-            forCellWithReuseIdentifier: SoundCarouselCell.reuseIdentifier
+            UICollectionViewCell.self,
+            forCellWithReuseIdentifier: Self.pageReuseIdentifier
         )
 
         addSubview(collectionView)
@@ -144,19 +146,7 @@ final class InfiniteSoundCarousel: UIView {
         return (visibleCenter - firstCenter) / pitch
     }
 
-    private func updateVisibleCellTreatmentAndTransition() {
-        let pitch = max(flowLayout.itemSize.width + flowLayout.minimumLineSpacing, 1)
-        let visibleCenter = collectionView.contentOffset.x + collectionView.bounds.width / 2
-        let reduceMotion = UIAccessibility.isReduceMotionEnabled
-
-        for case let cell as SoundCarouselCell in collectionView.visibleCells {
-            let distance = min(abs(cell.center.x - visibleCenter) / pitch, 1)
-            let scale = reduceMotion ? 1 : 1 - 0.06 * distance
-            cell.transform = CGAffineTransform(scaleX: scale, y: scale)
-            cell.alpha = 1 - 0.25 * distance
-            cell.applyTitleTreatment(centerDistance: distance)
-        }
-
+    private func updateBackgroundTransition() {
         let position = min(max(physicalPosition, 0), CGFloat(physicalItemCount - 1))
         let lower = Int(floor(position))
         let upper = min(lower + 1, physicalItemCount - 1)
@@ -177,18 +167,18 @@ extension InfiniteSoundCarousel: UICollectionViewDataSource, UICollectionViewDel
         _ collectionView: UICollectionView,
         cellForItemAt indexPath: IndexPath
     ) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: SoundCarouselCell.reuseIdentifier,
+        let cell = collectionView.dequeueReusableCell(
+            withReuseIdentifier: Self.pageReuseIdentifier,
             for: indexPath
-        ) as? SoundCarouselCell else {
-            return UICollectionViewCell()
-        }
-        cell.configure(sound: sounds[indexing.logicalIndex(for: indexPath.item)])
+        )
+        cell.backgroundColor = .clear
+        cell.contentView.backgroundColor = .clear
+        cell.isAccessibilityElement = false
         return cell
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateVisibleCellTreatmentAndTransition()
+        updateBackgroundTransition()
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
