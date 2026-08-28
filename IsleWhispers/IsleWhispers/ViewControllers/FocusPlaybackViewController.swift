@@ -244,6 +244,11 @@ final class FocusPlaybackViewController: UIViewController {
     }
 
     private func setupInteractions() {
+        soundPickerButton.addTarget(
+            self,
+            action: #selector(didTapSoundPicker),
+            for: .touchUpInside
+        )
         countdownButton.addTarget(
             self,
             action: #selector(didTapCountdown),
@@ -276,6 +281,7 @@ final class FocusPlaybackViewController: UIViewController {
     private func render() {
         let sound = playerService.currentSound
         titleLabel.text = sound.title
+        soundPickerButton.accessibilityLabel = "切换声音，当前\(sound.title)"
         updateBackground(for: sound)
         updateCountdownPresentation()
 
@@ -362,6 +368,27 @@ final class FocusPlaybackViewController: UIViewController {
     private func selectTimer(_ option: SleepTimerOption) {
         playerService.setSleepTimer(option)
         render()
+    }
+
+    @objc private func didTapSoundPicker() {
+        let library = SoundLibraryViewController(selectedSoundID: playerService.currentSound.id)
+        let navigation = UINavigationController(rootViewController: library)
+        library.navigationItem.rightBarButtonItem = UIBarButtonItem(
+            systemItem: .close,
+            primaryAction: UIAction { [weak navigation] _ in
+                navigation?.dismiss(animated: true)
+            }
+        )
+        library.onSelect = { [weak self, weak navigation] index in
+            self?.onSelectSound(index)
+            navigation?.dismiss(animated: true)
+        }
+        navigation.modalPresentationStyle = .pageSheet
+        if let sheet = navigation.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(navigation, animated: true)
     }
 
     @objc private func didTapCountdown() {

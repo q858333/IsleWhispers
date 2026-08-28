@@ -286,7 +286,7 @@ final class HomeViewController: UIViewController {
         recentButton.addTarget(self, action: #selector(didTapRecent), for: .touchUpInside)
         playPauseButton.addTarget(
             self,
-            action: #selector(didTapPlayPause),
+            action: #selector(didTapOpenFocusPlayback),
             for: .touchUpInside
         )
         retryButton.addTarget(self, action: #selector(didTapRetry), for: .touchUpInside)
@@ -325,7 +325,7 @@ final class HomeViewController: UIViewController {
         pageControl.accessibilityValue = "\(selectedIndex + 1) / \(Sound.catalog.count)"
 
         let isPlaying = playerService.isPlaying
-        let playSymbol = isPlaying ? "pause.fill" : "play.fill"
+        let playSymbol = isPlaying ? "waveform" : "play.fill"
         playPauseButton.setImage(
             UIImage(
                 systemName: playSymbol,
@@ -336,7 +336,9 @@ final class HomeViewController: UIViewController {
             ),
             for: .normal
         )
-        playPauseButton.accessibilityLabel = isPlaying ? "暂停" : "播放"
+        playPauseButton.accessibilityLabel = isPlaying
+            ? "打开播放页"
+            : "开始播放并打开播放页"
 
         let isMuted = playerService.isMuted
         muteButton.setImage(
@@ -509,8 +511,20 @@ final class HomeViewController: UIViewController {
         playerService.toggleMuted()
     }
 
-    @objc private func didTapPlayPause() {
-        playerService.togglePlayback()
+    @objc private func didTapOpenFocusPlayback() {
+        if !playerService.isPlaying {
+            playerService.play()
+        }
+        guard presentedViewController == nil else { return }
+
+        let controller = FocusPlaybackViewController(
+            playerService: playerService,
+            onSelectSound: { [weak self] index in
+                self?.selectAndPlaySound(at: index, animated: false)
+            }
+        )
+        controller.modalPresentationStyle = .fullScreen
+        present(controller, animated: true)
     }
 
     @objc private func didTapRetry() {

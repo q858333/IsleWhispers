@@ -37,16 +37,85 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testInitialPlayRecordsSelectedSound() throws {
+    func testInitialPlayRecordsSelectedSoundAndPresentsFullScreenFocusPage() throws {
         let context = makeHomeContext()
         defer { context.cleanup() }
-        context.controller.loadViewIfNeeded()
-        let play = try XCTUnwrap(findButton(label: "播放", in: context.controller.view))
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+        let play = try XCTUnwrap(
+            findButton(label: "开始播放并打开播放页", in: context.controller.view)
+        )
 
         play.sendActions(for: .touchUpInside)
 
         XCTAssertTrue(context.service.isPlaying)
         XCTAssertEqual(context.store.recentSounds.map(\.id), [Sound.catalog[2].id])
+        let focus = try XCTUnwrap(
+            context.controller.presentedViewController as? FocusPlaybackViewController
+        )
+        XCTAssertEqual(focus.modalPresentationStyle, .fullScreen)
+    }
+
+    @MainActor
+    func testAlreadyPlayingEntryPresentsWithoutRestartingAudio() throws {
+        let context = makeHomeContext()
+        defer { context.cleanup() }
+        context.service.play()
+        var stateNotificationCount = 0
+        let observer = NotificationCenter.default.addObserver(
+            forName: .audioPlayerStateDidChange,
+            object: context.service,
+            queue: nil
+        ) { _ in
+            stateNotificationCount += 1
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+        let open = try XCTUnwrap(
+            findButton(label: "打开播放页", in: context.controller.view)
+        )
+
+        open.sendActions(for: .touchUpInside)
+
+        let focus = try XCTUnwrap(
+            context.controller.presentedViewController as? FocusPlaybackViewController
+        )
+        XCTAssertEqual(focus.modalPresentationStyle, .fullScreen)
+        XCTAssertEqual(stateNotificationCount, 0)
+    }
+
+    @MainActor
+    func testInitialPlaybackFailureStillPresentsRecoverableFocusPage() throws {
+        let context = makeHomeContext(
+            resourceBundle: Bundle(for: HomeViewControllerTests.self)
+        )
+        defer { context.cleanup() }
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+        let play = try XCTUnwrap(
+            findButton(label: "开始播放并打开播放页", in: context.controller.view)
+        )
+
+        play.sendActions(for: .touchUpInside)
+
+        XCTAssertFalse(context.service.isPlaying)
+        let focus = try XCTUnwrap(
+            context.controller.presentedViewController as? FocusPlaybackViewController
+        )
+        focus.loadViewIfNeeded()
+        XCTAssertNotNil(findButton(label: "重试播放", in: focus.view))
+        XCTAssertNotNil(findButton(label: "关闭播放页", in: focus.view))
     }
 
     @MainActor
@@ -54,7 +123,9 @@ final class HomeViewControllerTests: XCTestCase {
         let context = makeHomeContext()
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
-        let play = try XCTUnwrap(findButton(label: "播放", in: context.controller.view))
+        let play = try XCTUnwrap(
+            findButton(label: "开始播放并打开播放页", in: context.controller.view)
+        )
         play.sendActions(for: .touchUpInside)
 
         XCTAssertEqual(context.service.performRemoteCommand(.next), .success)
@@ -328,12 +399,13 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    private func makeHomeContext() -> HomeContext {
+    private func makeHomeContext(resourceBundle: Bundle = .main) -> HomeContext {
         let suite = "HomeViewControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let service = AudioPlayerService(
             defaults: defaults,
-            configureSystemIntegration: false
+            configureSystemIntegration: false,
+            resourceBundle: resourceBundle
         )
         let store = RecentSoundsStore(defaults: defaults)
         let controller = HomeViewController(

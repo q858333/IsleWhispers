@@ -136,12 +136,70 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testCloseClearsTimerPausesAndCancelsScheduledNotification() throws {
+    func testSoundPickerSelectionAutoplaysRecordsPreservesTimerAndDismissesSheet() throws {
         let context = makeFocusContext()
         defer { context.cleanup() }
         context.service.play()
+        context.service.setSleepTimer(.minutes15)
+        context.advanceNow(by: 60)
+        XCTAssertEqual(
+            try XCTUnwrap(context.service.sleepTimerRemaining),
+            840,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            context.scheduler.scheduledDate,
+            Date(timeIntervalSince1970: 1_900)
+        )
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+
+        let switchButton = try XCTUnwrap(
+            findButton(labelPrefix: "切换声音", in: context.controller.view)
+        )
+        switchButton.sendActions(for: .touchUpInside)
+        let navigation = try XCTUnwrap(
+            context.controller.presentedViewController as? UINavigationController
+        )
+        let library = try XCTUnwrap(
+            navigation.viewControllers.first as? SoundLibraryViewController
+        )
+        library.selectItemForTesting(section: 1, item: 2)
+
+        XCTAssertEqual(context.service.currentSound.title, "游艇")
+        XCTAssertTrue(context.service.isPlaying)
+        XCTAssertEqual(context.store.recentSounds.first?.id, context.service.currentSound.id)
+        XCTAssertEqual(context.service.sleepTimerOption, .minutes15)
+        XCTAssertEqual(
+            try XCTUnwrap(context.service.sleepTimerRemaining),
+            840,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            context.scheduler.scheduledDate,
+            Date(timeIntervalSince1970: 1_900)
+        )
+        XCTAssertTrue(waitForDismissal(of: context.controller))
+    }
+
+    @MainActor
+    func testCloseClearsTimerPausesDismissesAndKeepsSelectedSound() throws {
+        let context = makeFocusContext()
+        defer { context.cleanup() }
+        context.service.next()
+        context.service.play()
         context.service.setSleepTimer(.minutes30)
+        let selectedIndex = context.service.selectedIndex
         XCTAssertNotNil(context.scheduler.scheduledDate)
+        let host = UIViewController()
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        host.present(context.controller, animated: false)
         layout(context.controller, size: CGSize(width: 390, height: 844))
         findButton(label: "暂停播放", in: context.controller.view)?
             .sendActions(for: .touchUpInside)
@@ -154,7 +212,10 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
 
         XCTAssertFalse(context.service.isPlaying)
         XCTAssertEqual(context.service.sleepTimerPhase, .unlimited)
+        XCTAssertEqual(context.service.sleepTimerOption, .unlimited)
         XCTAssertNil(context.scheduler.scheduledDate)
+        XCTAssertEqual(context.service.selectedIndex, selectedIndex)
+        XCTAssertTrue(waitForDismissal(of: host))
     }
 
     @MainActor
@@ -298,6 +359,13 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    private func findButton(labelPrefix: String, in root: UIView) -> UIButton? {
+        descendants(in: root)
+            .compactMap { $0 as? UIButton }
+            .first { $0.accessibilityLabel?.hasPrefix(labelPrefix) == true && !$0.isHidden }
+    }
+
+    @MainActor
     private func findView(identifier: String, in root: UIView) -> UIView? {
         descendants(in: root).first { $0.accessibilityIdentifier == identifier }
     }
@@ -305,6 +373,15 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     @MainActor
     private func descendants(in root: UIView) -> [UIView] {
         [root] + root.subviews.flatMap(descendants(in:))
+    }
+
+    @MainActor
+    private func waitForDismissal(of controller: UIViewController) -> Bool {
+        let deadline = Date().addingTimeInterval(1)
+        while controller.presentedViewController != nil, Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        return controller.presentedViewController == nil
     }
 }
 
