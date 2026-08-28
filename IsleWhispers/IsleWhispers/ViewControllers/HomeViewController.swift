@@ -393,29 +393,43 @@ final class HomeViewController: UIViewController {
         let scaleRange = 1 - minimumScale
         let maximumCornerRadius: CGFloat = 28
 
-        let sourceScale = 1 - scaleRange * clampedProgress
-        firstBackgroundImageView.transform = CGAffineTransform(
-            a: sourceScale,
-            b: 0,
-            c: 0,
-            d: sourceScale,
-            tx: -pageWidth * clampedProgress,
-            ty: 0
-        )
-        firstBackgroundImageView.layer.cornerRadius = maximumCornerRadius * clampedProgress
+        let baseImageView: UIImageView
+        let incomingImageView: UIImageView
+        let incomingProgress: CGFloat
+        let incomingTranslation: CGFloat
+        if to == displayedSoundIndex, from != displayedSoundIndex {
+            baseImageView = secondBackgroundImageView
+            incomingImageView = firstBackgroundImageView
+            incomingProgress = 1 - clampedProgress
+            incomingTranslation = -pageWidth * clampedProgress
+        } else {
+            baseImageView = firstBackgroundImageView
+            incomingImageView = secondBackgroundImageView
+            incomingProgress = clampedProgress
+            incomingTranslation = pageWidth * (1 - clampedProgress)
+        }
 
-        let targetScale = minimumScale + scaleRange * clampedProgress
-        secondBackgroundImageView.transform = CGAffineTransform(
-            a: targetScale,
+        if let baseIndex = view.subviews.firstIndex(of: baseImageView),
+           let incomingIndex = view.subviews.firstIndex(of: incomingImageView),
+           incomingIndex < baseIndex {
+            view.insertSubview(incomingImageView, aboveSubview: baseImageView)
+        }
+
+        baseImageView.transform = .identity
+        baseImageView.layer.cornerRadius = 0
+        baseImageView.alpha = 1
+
+        let incomingScale = minimumScale + scaleRange * incomingProgress
+        incomingImageView.transform = CGAffineTransform(
+            a: incomingScale,
             b: 0,
             c: 0,
-            d: targetScale,
-            tx: pageWidth * (1 - clampedProgress),
+            d: incomingScale,
+            tx: incomingTranslation,
             ty: 0
         )
-        secondBackgroundImageView.layer.cornerRadius = maximumCornerRadius * (1 - clampedProgress)
-        firstBackgroundImageView.alpha = 1
-        secondBackgroundImageView.alpha = 1
+        incomingImageView.layer.cornerRadius = maximumCornerRadius * (1 - incomingProgress)
+        incomingImageView.alpha = 1
     }
 
     private func renderSettledBackground(for sound: Sound) {

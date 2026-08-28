@@ -241,13 +241,9 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testBackgroundTransitionGrowsIncomingPageAsItApproachesCenter() throws {
+    func testBackgroundTransitionKeepsOneFullScreenBaseBehindGrowingCardInBothDirections() throws {
         let context = makeHomeContext()
         defer { context.cleanup() }
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = context.controller
-        window.makeKeyAndVisible()
-        defer { window.isHidden = true }
         layout(context.controller, size: CGSize(width: 390, height: 844))
         let backgrounds = context.controller.view.subviews.compactMap { $0 as? UIImageView }
         let sourceBackground = try XCTUnwrap(backgrounds.first)
@@ -273,32 +269,46 @@ final class HomeViewControllerTests: XCTestCase {
             - collectionView.bounds.width / 2
         carousel.scrollViewDidScroll(collectionView)
 
-        XCTAssertEqual(sourceBackground.transform.a, 0.975, accuracy: 0.001)
-        XCTAssertEqual(sourceBackground.transform.tx, -97.5, accuracy: 0.25)
-        XCTAssertEqual(sourceBackground.layer.cornerRadius, 7, accuracy: 0.1)
+        XCTAssertEqual(sourceBackground.transform, .identity)
+        XCTAssertEqual(sourceBackground.layer.cornerRadius, 0, accuracy: 0.1)
         XCTAssertEqual(targetBackground.transform.a, 0.925, accuracy: 0.001)
         XCTAssertEqual(targetBackground.transform.tx, 292.5, accuracy: 0.25)
         XCTAssertEqual(targetBackground.layer.cornerRadius, 21, accuracy: 0.1)
         XCTAssertEqual(sourceBackground.alpha, 1, accuracy: 0.01)
         XCTAssertEqual(targetBackground.alpha, 1, accuracy: 0.01)
+        XCTAssertGreaterThan(
+            try XCTUnwrap(context.controller.view.subviews.firstIndex(of: targetBackground)),
+            try XCTUnwrap(context.controller.view.subviews.firstIndex(of: sourceBackground))
+        )
 
         collectionView.contentOffset.x = from.center.x + pitch * 0.75
             - collectionView.bounds.width / 2
         carousel.scrollViewDidScroll(collectionView)
 
-        XCTAssertEqual(sourceBackground.transform.a, 0.925, accuracy: 0.001)
-        XCTAssertEqual(sourceBackground.transform.tx, -292.5, accuracy: 0.25)
-        XCTAssertEqual(sourceBackground.layer.cornerRadius, 21, accuracy: 0.1)
+        XCTAssertEqual(sourceBackground.transform, .identity)
+        XCTAssertEqual(sourceBackground.layer.cornerRadius, 0, accuracy: 0.1)
         XCTAssertEqual(targetBackground.transform.a, 0.975, accuracy: 0.001)
         XCTAssertEqual(targetBackground.transform.tx, 97.5, accuracy: 0.25)
         XCTAssertEqual(targetBackground.layer.cornerRadius, 7, accuracy: 0.1)
         XCTAssertEqual(sourceBackground.alpha, 1, accuracy: 0.01)
         XCTAssertEqual(targetBackground.alpha, 1, accuracy: 0.01)
 
-        carousel.settle(onPhysicalIndex: 18)
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.02))
+        let previous = try XCTUnwrap(
+            flowLayout.layoutAttributesForItem(at: IndexPath(item: 16, section: 0))
+        )
+        collectionView.contentOffset.x = previous.center.x + pitch * 0.75
+            - collectionView.bounds.width / 2
+        carousel.scrollViewDidScroll(collectionView)
 
-        XCTAssertNil(sourceBackground.layer.animation(forKey: "transform"))
+        XCTAssertEqual(sourceBackground.transform.a, 0.925, accuracy: 0.001)
+        XCTAssertEqual(sourceBackground.transform.tx, -292.5, accuracy: 0.25)
+        XCTAssertEqual(sourceBackground.layer.cornerRadius, 21, accuracy: 0.1)
+        XCTAssertEqual(targetBackground.transform, .identity)
+        XCTAssertEqual(targetBackground.layer.cornerRadius, 0, accuracy: 0.1)
+        XCTAssertGreaterThan(
+            try XCTUnwrap(context.controller.view.subviews.firstIndex(of: sourceBackground)),
+            try XCTUnwrap(context.controller.view.subviews.firstIndex(of: targetBackground))
+        )
     }
 
     @MainActor
