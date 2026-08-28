@@ -50,6 +50,26 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         XCTAssertEqual(firstCell.contentView.frame.height, firstCell.bounds.height, accuracy: 0.5)
     }
 
+    @MainActor
+    func testLogoGradientFillsLibraryBackground() throws {
+        let controller = SoundLibraryViewController(selectedSoundID: Sound.catalog[2].id)
+        controller.loadViewIfNeeded()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        controller.view.layoutIfNeeded()
+
+        let gradient = try XCTUnwrap(
+            controller.view.layer.sublayers?.compactMap { $0 as? CAGradientLayer }.first
+        )
+        let colors = try XCTUnwrap(gradient.colors as? [CGColor])
+
+        XCTAssertEqual(gradient.frame, controller.view.bounds)
+        XCTAssertEqual(gradient.startPoint, CGPoint(x: 0.5, y: 0))
+        XCTAssertEqual(gradient.endPoint, CGPoint(x: 0.5, y: 1))
+        XCTAssertEqual(colors.count, 2)
+        XCTAssertEqual(colors[0], UIColor(red: 186 / 255, green: 141 / 255, blue: 142 / 255, alpha: 1).cgColor)
+        XCTAssertEqual(colors[1], UIColor(red: 250 / 255, green: 242 / 255, blue: 217 / 255, alpha: 1).cgColor)
+    }
+
     private func findCollectionView(in view: UIView) -> UICollectionView? {
         if let collectionView = view as? UICollectionView {
             return collectionView

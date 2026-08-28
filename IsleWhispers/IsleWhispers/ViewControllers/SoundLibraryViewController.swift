@@ -16,6 +16,8 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
     private let sections: [Section] = SoundCategory.allCases.map { category in
         Section(category: category, sounds: Sound.catalogByCategory[category] ?? [])
     }
+    private let backgroundGradient = CAGradientLayer()
+    private let warmForeground = UIColor(red: 0.27, green: 0.18, blue: 0.18, alpha: 1)
     private let titleLabel = UILabel()
 
     private lazy var collectionView: UICollectionView = {
@@ -55,7 +57,8 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = AppTheme.background
+        view.backgroundColor = UIColor(red: 250 / 255, green: 242 / 255, blue: 217 / 255, alpha: 1)
+        setupBackground()
         setupHeader()
         setupCollectionView()
         NotificationCenter.default.addObserver(
@@ -64,6 +67,11 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
             name: UIContentSizeCategory.didChangeNotification,
             object: nil
         )
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        backgroundGradient.frame = view.bounds
     }
 
     func updateSelectedSound(id: String) {
@@ -119,7 +127,7 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
         } else {
             label = UILabel()
             label.font = AppTheme.font(.title2, weight: .bold)
-            label.textColor = AppTheme.foreground
+            label.textColor = warmForeground
             label.adjustsFontForContentSizeCategory = true
             header.addSubview(label)
             label.snp.makeConstraints { make in
@@ -154,7 +162,7 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
     private func setupHeader() {
         titleLabel.text = "声音库"
         titleLabel.font = AppTheme.font(.largeTitle, weight: .bold)
-        titleLabel.textColor = AppTheme.foreground
+        titleLabel.textColor = warmForeground
         titleLabel.adjustsFontForContentSizeCategory = true
 
         view.addSubview(titleLabel)
@@ -162,6 +170,16 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
             make.top.equalTo(view.safeAreaLayoutGuide).offset(16)
             make.leading.trailing.equalTo(view.safeAreaLayoutGuide).inset(20)
         }
+    }
+
+    private func setupBackground() {
+        backgroundGradient.colors = [
+            UIColor(red: 186 / 255, green: 141 / 255, blue: 142 / 255, alpha: 1).cgColor,
+            UIColor(red: 250 / 255, green: 242 / 255, blue: 217 / 255, alpha: 1).cgColor
+        ]
+        backgroundGradient.startPoint = CGPoint(x: 0.5, y: 0)
+        backgroundGradient.endPoint = CGPoint(x: 0.5, y: 1)
+        view.layer.insertSublayer(backgroundGradient, at: 0)
     }
 
     private func setupCollectionView() {
