@@ -235,6 +235,58 @@ final class AudioPlayerPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testInterruptionBeginningUsesOneNowSampleToFreezePositiveRemainingTime() {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        var interruptionNowSequence: [Date] = []
+        var interruptionNowSampleCount = 0
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: {
+                guard !interruptionNowSequence.isEmpty else { return now }
+                interruptionNowSampleCount += 1
+                return interruptionNowSequence.removeFirst()
+            },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        interruptionNowSequence = [
+            Date(timeIntervalSince1970: 1_899.75),
+            Date(timeIntervalSince1970: 1_900)
+        ]
+
+        service.handleAudioSessionInterruption(interruption(.began))
+
+        XCTAssertEqual(interruptionNowSampleCount, 1)
+        XCTAssertEqual(service.sleepTimerPhase, .paused(remaining: 0.25))
+        XCTAssertFalse(service.isPlaying)
+        XCTAssertNil(scheduler.scheduledDate)
+
+        interruptionNowSequence.removeAll()
+        now = Date(timeIntervalSince1970: 2_000)
+        service.handleAudioSessionInterruption(interruption(.ended, shouldResume: true))
+
+        XCTAssertTrue(service.isPlaying)
+        XCTAssertEqual(
+            service.sleepTimerPhase,
+            .running(deadline: Date(timeIntervalSince1970: 2_000.25))
+        )
+        XCTAssertEqual(scheduler.scheduledDate, Date(timeIntervalSince1970: 2_000.25))
+        XCTAssertEqual(
+            scheduler.scheduledDates,
+            [
+                Date(timeIntervalSince1970: 1_900),
+                Date(timeIntervalSince1970: 2_000.25)
+            ]
+        )
+    }
+
+    @MainActor
     func testInterruptionStillAutoResumesPlaybackUserStartedAfterTimerExpired() {
         let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

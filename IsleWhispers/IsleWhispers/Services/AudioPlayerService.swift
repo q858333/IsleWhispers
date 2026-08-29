@@ -333,9 +333,9 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         notificationScheduler?.schedulePlaybackEnd(at: deadline)
     }
 
-    private func pauseSleepTimerIfNeeded() {
+    private func pauseSleepTimerIfNeeded(at now: Date? = nil) {
         guard case .running = sleepTimerState.phase else { return }
-        sleepTimerState.pause(at: nowProvider())
+        sleepTimerState.pause(at: now ?? nowProvider())
         if case .expired = sleepTimerState.phase {
             sleepTimer?.invalidate()
             sleepTimer = nil
@@ -438,9 +438,10 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
         switch type {
         case .began:
-            guard !expireSleepTimerIfNeeded() else { return }
+            let now = nowProvider()
+            guard !expireSleepTimerIfNeeded(at: now) else { return }
             shouldResumeAfterInterruption = isPlaying
-            pauseSleepTimerIfNeeded()
+            pauseSleepTimerIfNeeded(at: now)
             stopPlayback(
                 releasingSystemOwnership: false,
                 cancellingInterruptionResume: false
@@ -475,8 +476,8 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     @discardableResult
-    private func expireSleepTimerIfNeeded() -> Bool {
-        guard sleepTimerState.expireIfNeeded(at: nowProvider()) else { return false }
+    private func expireSleepTimerIfNeeded(at now: Date? = nil) -> Bool {
+        guard sleepTimerState.expireIfNeeded(at: now ?? nowProvider()) else { return false }
 
         sleepTimer?.invalidate()
         sleepTimer = nil
