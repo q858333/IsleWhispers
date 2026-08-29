@@ -209,6 +209,57 @@ final class AudioPlayerPersistenceTests: XCTestCase {
     }
 
     @MainActor
+    func testInterruptionBeginningAtTimerDeadlineExpiresWithoutAutoResume() {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let scheduler = PlaybackEndNotificationSchedulerSpy()
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now },
+            notificationScheduler: scheduler
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        now = Date(timeIntervalSince1970: 1_900)
+
+        service.handleAudioSessionInterruption(interruption(.began))
+        service.handleAudioSessionInterruption(interruption(.ended, shouldResume: true))
+
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
+        XCTAssertFalse(service.isPlaying)
+        XCTAssertFalse(service.ownsPlaybackSession)
+        XCTAssertEqual(scheduler.scheduledDates, [Date(timeIntervalSince1970: 1_900)])
+    }
+
+    @MainActor
+    func testInterruptionStillAutoResumesPlaybackUserStartedAfterTimerExpired() {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var now = Date(timeIntervalSince1970: 1_000)
+        let service = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            nowProvider: { now }
+        )
+        service.play()
+        service.setSleepTimer(.minutes15)
+        now = Date(timeIntervalSince1970: 1_900)
+        service.reconcileSleepTimer()
+        service.play()
+        XCTAssertTrue(service.isPlaying)
+
+        service.handleAudioSessionInterruption(interruption(.began))
+        service.handleAudioSessionInterruption(interruption(.ended, shouldResume: true))
+
+        XCTAssertEqual(service.sleepTimerPhase, .expired)
+        XCTAssertTrue(service.isPlaying)
+    }
+
+    @MainActor
     func testRouteRemovalDuringInterruptionCancelsResumeIntent() {
         let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

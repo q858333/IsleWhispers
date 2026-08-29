@@ -438,6 +438,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
 
         switch type {
         case .began:
+            guard !expireSleepTimerIfNeeded() else { return }
             shouldResumeAfterInterruption = isPlaying
             pauseSleepTimerIfNeeded()
             stopPlayback(
