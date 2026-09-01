@@ -7,6 +7,12 @@ final class RootTabBarController: UITabBarController {
     private let playerService: AudioPlayerService
     private let recentStore: RecentSoundsStore
 
+    override var selectedIndex: Int {
+        didSet {
+            updateTabBarAppearance(for: selectedIndex)
+        }
+    }
+
     init(playerService: AudioPlayerService, recentStore: RecentSoundsStore) {
         self.playerService = playerService
         self.recentStore = recentStore
@@ -53,7 +59,7 @@ final class RootTabBarController: UITabBarController {
             name: .audioPlayerStateDidChange,
             object: playerService
         )
-        configureAppearance()
+        updateTabBarAppearance(for: selectedIndex)
     }
 
     required init?(coder: NSCoder) {
@@ -74,15 +80,31 @@ final class RootTabBarController: UITabBarController {
         soundLibraryViewController.updateSelectedSound(id: playerService.currentSound.id)
     }
 
-    private func configureAppearance() {
+    private func updateTabBarAppearance(for index: Int) {
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
-        appearance.backgroundColor = AppTheme.tabBarBackground
-        appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        appearance.stackedLayoutAppearance.selected.iconColor = .white
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor.white
-        ]
+        if index == 0 {
+            appearance.backgroundColor = AppTheme.tabBarBackground
+            appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+            appearance.stackedLayoutAppearance.selected.iconColor = .white
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+                .foregroundColor: UIColor.white
+            ]
+        } else {
+            let selectedColor = AppTheme.secondaryTabBarForeground
+            let normalColor = selectedColor.withAlphaComponent(0.58)
+            appearance.backgroundColor = AppTheme.secondaryTabBarBackground
+            appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
+            appearance.shadowColor = AppTheme.warmRose.withAlphaComponent(0.18)
+            appearance.stackedLayoutAppearance.selected.iconColor = selectedColor
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+                .foregroundColor: selectedColor
+            ]
+            appearance.stackedLayoutAppearance.normal.iconColor = normalColor
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+                .foregroundColor: normalColor
+            ]
+        }
 
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance

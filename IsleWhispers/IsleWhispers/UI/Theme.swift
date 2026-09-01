@@ -18,6 +18,14 @@ enum AppTheme {
     static let warmCream = UIColor(red: 0.98, green: 0.91, blue: 0.79, alpha: 1)
     static let homeOverlay = UIColor.black.withAlphaComponent(0.28)
     static let tabBarBackground = UIColor(red: 0.16, green: 0.13, blue: 0.14, alpha: 0.88)
+    static let secondaryTabBarBackground = UIColor {
+        $0.userInterfaceStyle == .dark
+            ? UIColor(white: 0.12, alpha: 0.68)
+            : warmCream.withAlphaComponent(0.46)
+    }
+    static let secondaryTabBarForeground = UIColor {
+        $0.userInterfaceStyle == .dark ? .white : accentForeground
+    }
     static let accentForeground = UIColor(
         red: 0.035,
         green: 0.105,

@@ -64,6 +64,30 @@ final class RootTabBarControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testSoundAndSettingsTabsUseMatchingBlurAppearanceDistinctFromHome() throws {
+        let context = makeRootContext()
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+
+        context.controller.selectedIndex = 0
+        let homeAppearance = context.controller.tabBar.standardAppearance
+
+        context.controller.selectedIndex = 1
+        let soundAppearance = context.controller.tabBar.standardAppearance
+
+        context.controller.selectedIndex = 2
+        let settingsAppearance = context.controller.tabBar.standardAppearance
+
+        XCTAssertNotNil(soundAppearance.backgroundEffect)
+        XCTAssertNotNil(settingsAppearance.backgroundEffect)
+        let homeColor = try XCTUnwrap(homeAppearance.backgroundColor)
+        let soundColor = try XCTUnwrap(soundAppearance.backgroundColor)
+        let settingsColor = try XCTUnwrap(settingsAppearance.backgroundColor)
+        XCTAssertFalse(soundColor.isEqual(homeColor))
+        XCTAssertTrue(settingsColor.isEqual(soundColor))
+    }
+
+    @MainActor
     private func makeRootContext() -> RootContext {
         let suite = "RootTabBarControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
