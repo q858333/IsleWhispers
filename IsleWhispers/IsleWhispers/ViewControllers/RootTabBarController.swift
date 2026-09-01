@@ -13,6 +13,12 @@ final class RootTabBarController: UITabBarController {
         }
     }
 
+    override var selectedViewController: UIViewController? {
+        didSet {
+            updateTabBarAppearance(for: selectedIndex)
+        }
+    }
+
     init(playerService: AudioPlayerService, recentStore: RecentSoundsStore) {
         self.playerService = playerService
         self.recentStore = recentStore

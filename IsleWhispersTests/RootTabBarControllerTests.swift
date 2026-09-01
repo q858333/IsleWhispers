@@ -88,6 +88,28 @@ final class RootTabBarControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testUserSelectingSecondaryTabsUpdatesBlurAppearance() throws {
+        let context = makeRootContext()
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+        let controllers = try XCTUnwrap(context.controller.viewControllers)
+        let homeColor = try XCTUnwrap(
+            context.controller.tabBar.standardAppearance.backgroundColor
+        )
+
+        for index in [1, 2] {
+            context.controller.selectedViewController = controllers[0]
+            context.controller.selectedViewController = controllers[index]
+
+            XCTAssertEqual(context.controller.selectedIndex, index)
+            let selectedColor = try XCTUnwrap(
+                context.controller.tabBar.standardAppearance.backgroundColor
+            )
+            XCTAssertFalse(selectedColor.isEqual(homeColor))
+        }
+    }
+
+    @MainActor
     private func makeRootContext() -> RootContext {
         let suite = "RootTabBarControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
