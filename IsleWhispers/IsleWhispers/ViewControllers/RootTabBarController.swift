@@ -3,6 +3,7 @@ import UIKit
 final class RootTabBarController: UITabBarController {
     let homeViewController: HomeViewController
     let soundLibraryViewController: SoundLibraryViewController
+    let settingsViewController: SettingsViewController
     private let playerService: AudioPlayerService
     private let recentStore: RecentSoundsStore
 
@@ -16,6 +17,7 @@ final class RootTabBarController: UITabBarController {
         soundLibraryViewController = SoundLibraryViewController(
             selectedSoundID: playerService.currentSound.id
         )
+        settingsViewController = SettingsViewController()
         super.init(nibName: nil, bundle: nil)
 
         homeViewController.tabBarItem = UITabBarItem(
@@ -28,7 +30,19 @@ final class RootTabBarController: UITabBarController {
             image: UIImage(systemName: "square.grid.2x2.fill"),
             selectedImage: UIImage(systemName: "square.grid.2x2.fill")
         )
-        viewControllers = [homeViewController, soundLibraryViewController]
+        let settingsNavigationController = UINavigationController(
+            rootViewController: settingsViewController
+        )
+        settingsNavigationController.tabBarItem = UITabBarItem(
+            title: "设置",
+            image: UIImage(systemName: "gearshape.fill"),
+            selectedImage: UIImage(systemName: "gearshape.fill")
+        )
+        viewControllers = [
+            homeViewController,
+            soundLibraryViewController,
+            settingsNavigationController
+        ]
 
         soundLibraryViewController.onSelect = { [weak self] index in
             self?.selectSoundFromLibrary(at: index)

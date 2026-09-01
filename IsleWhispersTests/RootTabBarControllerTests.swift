@@ -3,15 +3,15 @@ import XCTest
 
 final class RootTabBarControllerTests: XCTestCase {
     @MainActor
-    func testRootContainsHomeAndSoundTabs() {
+    func testRootContainsHomeSoundAndSettingsTabs() {
         let context = makeRootContext()
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
 
-        XCTAssertEqual(context.controller.viewControllers?.count, 2)
+        XCTAssertEqual(context.controller.viewControllers?.count, 3)
         XCTAssertEqual(
             context.controller.viewControllers?.map { $0.tabBarItem.title },
-            ["首页", "声音"]
+            ["首页", "声音", "设置"]
         )
     }
 
@@ -55,6 +55,7 @@ final class RootTabBarControllerTests: XCTestCase {
         XCTAssertFalse(context.service.isPlaying)
 
         context.controller.selectedIndex = 1
+        context.controller.selectedIndex = 2
         context.controller.selectedIndex = 0
 
         XCTAssertEqual(context.service.selectedIndex, selectedIndex)
