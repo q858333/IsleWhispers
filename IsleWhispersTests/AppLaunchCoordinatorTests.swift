@@ -4,6 +4,64 @@ import XCTest
 
 @MainActor
 final class AppLaunchCoordinatorTests: XCTestCase {
+    func testDeviceRegistrationStartsOnlyAfterAgreementAndOnlyOnce() async throws {
+        let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let registrationStarted = expectation(description: "设备上报开始")
+        var registrationCount = 0
+        let launch = LaunchViewController(
+            registerDevice: {
+                registrationCount += 1
+                registrationStarted.fulfill()
+            },
+            agreementDefaults: defaults,
+            scheduleRoute: { _ in },
+            onContinue: {}
+        )
+        launch.loadViewIfNeeded()
+
+        launch.viewDidAppear(false)
+        XCTAssertEqual(registrationCount, 0)
+
+        let acceptButton = try XCTUnwrap(
+            view("launch.agreement.accept", in: launch.view) as? UIButton
+        )
+        acceptButton.sendActions(for: .touchUpInside)
+        acceptButton.sendActions(for: .touchUpInside)
+        await fulfillment(of: [registrationStarted], timeout: 1)
+        launch.viewDidAppear(false)
+        await Task.yield()
+
+        XCTAssertEqual(registrationCount, 1)
+    }
+
+    func testAcceptedColdLaunchStartsDeviceRegistrationOnlyOnce() async {
+        let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: LaunchViewController.agreementAcceptedDefaultsKey)
+        let registrationStarted = expectation(description: "设备上报开始")
+        var registrationCount = 0
+        let launch = LaunchViewController(
+            registerDevice: {
+                registrationCount += 1
+                registrationStarted.fulfill()
+            },
+            agreementDefaults: defaults,
+            scheduleRoute: { _ in },
+            onContinue: {}
+        )
+        launch.loadViewIfNeeded()
+
+        launch.viewDidAppear(false)
+        launch.viewDidAppear(false)
+        await fulfillment(of: [registrationStarted], timeout: 1)
+        await Task.yield()
+
+        XCTAssertEqual(registrationCount, 1)
+    }
+
     func testStartShowsBrandAgreementAndDefersMainInterface() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

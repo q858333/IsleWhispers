@@ -4,11 +4,13 @@ import UIKit
 
 @MainActor
 final class LaunchViewController: UIViewController {
+    typealias LaunchAction = @MainActor () async -> Void
     typealias RouteScheduler = @MainActor (@escaping @MainActor () -> Void) -> Void
 
     static let agreementAcceptedDefaultsKey = "app.launch.agreementAccepted"
     static let minimumDisplayDuration: TimeInterval = 1
 
+    private let registerDevice: LaunchAction
     private let agreementDefaults: UserDefaults
     private let links: AppSupportLinks
     private let scheduleRoute: RouteScheduler
@@ -18,12 +20,16 @@ final class LaunchViewController: UIViewController {
     private var routeWasScheduled = false
 
     init(
+        registerDevice: LaunchAction? = nil,
         agreementDefaults: UserDefaults,
         links: AppSupportLinks? = nil,
         scheduleRoute: @escaping RouteScheduler,
         unavailableHandler: ((String) -> Void)? = nil,
         onContinue: @escaping @MainActor () -> Void
     ) {
+        self.registerDevice = registerDevice ?? {
+            try? await DeviceRegistrationService.shared.registerWithRetry()
+        }
         self.agreementDefaults = agreementDefaults
         self.links = links ?? .current
         self.scheduleRoute = scheduleRoute
@@ -269,6 +275,8 @@ final class LaunchViewController: UIViewController {
     private func startRoutingIfNeeded() {
         guard !routeWasScheduled else { return }
         routeWasScheduled = true
+        let registerDevice = registerDevice
+        Task { await registerDevice() }
         scheduleRoute(onContinue)
     }
 }
