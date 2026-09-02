@@ -4,8 +4,11 @@ import XCTest
 
 final class SoundLibraryViewControllerTests: XCTestCase {
     @MainActor
-    func testShowsOrderedGroupsAndAllFifteenSounds() {
-        let controller = SoundLibraryViewController(selectedSoundID: Sound.catalog[2].id)
+    func testShowsOrderedGroupsAndAllFifteenSounds() throws {
+        let controller = SoundLibraryViewController(
+            selectedSoundID: Sound.catalog[2].id,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         controller.loadViewIfNeeded()
 
         XCTAssertEqual(controller.sectionTitles, ["自然", "生活", "氛围"])
@@ -96,13 +99,22 @@ final class SoundLibraryViewControllerTests: XCTestCase {
             collectionView.layoutIfNeeded()
             XCTAssertGreaterThan(collectionView.contentSize.height, collectionView.bounds.height)
 
+            let expectedPageTitle = language == "en" ? "Sound Library" : "聲音庫"
+            let pageTitle = try XCTUnwrap(
+                labels(in: controller.view).first { $0.text == expectedPageTitle }
+            )
+            XCTAssertEqual(pageTitle.numberOfLines, 0)
+            XCTAssertEqual(pageTitle.lineBreakMode, .byWordWrapping)
+            assertLabelFits(pageTitle, inside: controller.view)
+
             let firstCell: UICollectionViewCell = try XCTUnwrap(
                 collectionView.cellForItem(at: IndexPath(item: 0, section: 0))
             )
-            let labels = labels(in: firstCell.contentView)
-            XCTAssertTrue(labels.allSatisfy { $0.numberOfLines == 0 })
-            for element in accessibilityElements(in: firstCell) {
-                XCTAssertTrue(firstCell.bounds.contains(firstCell.convert(element.bounds, from: element)))
+            let cardLabels = labels(in: firstCell.contentView)
+            XCTAssertEqual(cardLabels.count, 2)
+            XCTAssertTrue(cardLabels.allSatisfy { $0.numberOfLines == 0 })
+            for label in cardLabels {
+                assertLabelFits(label, inside: firstCell.contentView)
             }
         }
     }
@@ -192,6 +204,7 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         collectionView.layoutIfNeeded()
         XCTAssertEqual(collectionView.accessibilityLabel, listLabel)
         XCTAssertEqual(controller.sectionTitles, groups)
+        XCTAssertEqual(try sectionHeaderTitles(for: controller), groups)
 
         assertCard(
             controller,
@@ -229,8 +242,43 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         return directLabels + view.subviews.flatMap(labels(in:))
     }
 
-    private func accessibilityElements(in view: UIView) -> [UIView] {
-        let directElements = view.isAccessibilityElement ? [view] : []
-        return directElements + view.subviews.flatMap(accessibilityElements(in:))
+    @MainActor
+    private func sectionHeaderTitles(for controller: SoundLibraryViewController) throws -> [String] {
+        let collectionView = SupplementaryViewCollection()
+        return try SoundCategory.allCases.indices.map { section in
+            let header = controller.collectionView(
+                collectionView,
+                viewForSupplementaryElementOfKind: UICollectionView.elementKindSectionHeader,
+                at: IndexPath(item: 0, section: section)
+            )
+            return try XCTUnwrap(header.subviews.compactMap { $0 as? UILabel }.first?.text)
+        }
+    }
+
+    private func assertLabelFits(_ label: UILabel, inside container: UIView) {
+        let labelFrame = container.convert(label.bounds, from: label)
+        XCTAssertTrue(container.bounds.contains(labelFrame))
+        let fittingSize = label.sizeThatFits(
+            CGSize(width: label.bounds.width, height: .greatestFiniteMagnitude)
+        )
+        XCTAssertLessThanOrEqual(fittingSize.height, label.bounds.height + 0.5)
+    }
+}
+
+private final class SupplementaryViewCollection: UICollectionView {
+    init() {
+        super.init(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func dequeueReusableSupplementaryView(
+        ofKind elementKind: String,
+        withReuseIdentifier identifier: String,
+        for indexPath: IndexPath
+    ) -> UICollectionReusableView {
+        UICollectionReusableView()
     }
 }

@@ -170,6 +170,8 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
         titleLabel.font = AppTheme.font(.largeTitle, weight: .bold)
         titleLabel.textColor = warmForeground
         titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.numberOfLines = 0
+        titleLabel.lineBreakMode = .byWordWrapping
 
         view.addSubview(titleLabel)
         titleLabel.snp.makeConstraints { make in
