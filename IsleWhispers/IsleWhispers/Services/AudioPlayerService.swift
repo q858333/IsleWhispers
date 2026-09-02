@@ -14,6 +14,24 @@ enum AudioPlayerRemoteCommand: Sendable {
     case next
 }
 
+enum AudioPlayerStatus: Equatable, Sendable {
+    case ready
+    case sessionUnavailable
+    case playbackFailed
+    case decodeFailed
+    case resourceUnavailable
+
+    var localizationKey: String {
+        switch self {
+        case .ready: return "player.status.ready"
+        case .sessionUnavailable: return "player.status.session_unavailable"
+        case .playbackFailed: return "player.status.playback_failed"
+        case .decodeFailed: return "player.status.decode_failed"
+        case .resourceUnavailable: return "player.status.resource_unavailable"
+        }
+    }
+}
+
 @MainActor
 final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private nonisolated struct RemoteCommandRegistration {
@@ -29,12 +47,15 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private(set) var state: PlaybackState
     private(set) var sleepTimerState = SleepTimerState()
     private var player: AVAudioPlayer?
-    private(set) var statusMessage = "准备就绪"
+    private(set) var status: AudioPlayerStatus = .ready
     private(set) var isMuted = false
 
     var selectedIndex: Int { state.selectedIndex }
     var currentSound: Sound { Sound.catalog[selectedIndex] }
     var isPlaying: Bool { state.isPlaying }
+    var statusMessage: String {
+        L10n.text(status.localizationKey, bundle: localizationBundle)
+    }
     var sleepTimerOption: SleepTimerOption { sleepTimerState.option }
     var sleepTimerPhase: SleepTimerPhase { sleepTimerState.phase }
     var sleepTimerRemaining: TimeInterval? {
@@ -44,6 +65,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     private let defaults: UserDefaults
     private let configureSystemIntegration: Bool
     private let resourceBundle: Bundle
+    private let localizationBundle: Bundle
     private let notificationCenter: NotificationCenter
     private let nowProvider: () -> Date
     private let notificationScheduler: PlaybackEndNotificationScheduling?
@@ -59,6 +81,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         defaults: UserDefaults = .standard,
         configureSystemIntegration: Bool = true,
         resourceBundle: Bundle = .main,
+        localizationBundle: Bundle = .main,
         notificationCenter: NotificationCenter = .default,
         observeSystemNotifications: Bool? = nil,
         nowProvider: @escaping () -> Date = Date.init,
@@ -70,6 +93,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         self.defaults = defaults
         self.configureSystemIntegration = configureSystemIntegration
         self.resourceBundle = resourceBundle
+        self.localizationBundle = localizationBundle
         self.notificationCenter = notificationCenter
         self.shouldObserveSystemNotifications =
             observeSystemNotifications ?? configureSystemIntegration
@@ -165,7 +189,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
                 audioSessionIsActive = true
             } catch {
                 state.isPlaying = false
-                statusMessage = "音频会话不可用"
+                status = .sessionUnavailable
                 releaseSystemPlaybackOwnership()
                 publishState()
                 return false
@@ -173,7 +197,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         }
 
         state.isPlaying = player.play()
-        statusMessage = state.isPlaying ? "准备就绪" : "音频播放失败"
+        status = state.isPlaying ? .ready : .playbackFailed
         if state.isPlaying {
             ownsPlaybackSession = true
         } else {
@@ -264,7 +288,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         pauseSleepTimerIfNeeded()
         self.player = nil
         state.isPlaying = false
-        statusMessage = "音频解码失败"
+        status = .decodeFailed
         shouldResumeAfterInterruption = false
         releaseSystemPlaybackOwnership()
         publishState()
@@ -282,7 +306,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         ) ?? resourceBundle.url(forResource: currentSound.audioResource, withExtension: "caf")
 
         guard let url else {
-            statusMessage = "音频资源不可用"
+            status = .resourceUnavailable
             return
         }
 
@@ -291,14 +315,14 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
             preparedPlayer.delegate = self
             preparedPlayer.numberOfLoops = -1
             guard preparedPlayer.prepareToPlay() else {
-                statusMessage = "音频解码失败"
+                status = .decodeFailed
                 return
             }
             preparedPlayer.volume = isMuted ? 0 : 1
             player = preparedPlayer
-            statusMessage = "准备就绪"
+            status = .ready
         } catch {
-            statusMessage = "音频解码失败"
+            status = .decodeFailed
         }
     }
 
@@ -354,7 +378,7 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
         } catch {
-            statusMessage = "音频会话不可用"
+            status = .sessionUnavailable
         }
     }
 
@@ -419,9 +443,13 @@ final class AudioPlayerService: NSObject, AVAudioPlayerDelegate {
     }
 
     private func updateNowPlayingInfo() {
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: currentSound.title,
-            MPMediaItemPropertyArtist: currentSound.subtitle,
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo()
+    }
+
+    func nowPlayingInfo() -> [String: Any] {
+        [
+            MPMediaItemPropertyTitle: currentSound.title(bundle: localizationBundle),
+            MPMediaItemPropertyAlbumTitle: currentSound.subtitle(bundle: localizationBundle),
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
         ]
     }

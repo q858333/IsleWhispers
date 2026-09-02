@@ -8,15 +8,38 @@ protocol PlaybackEndNotificationScheduling: AnyObject {
 }
 
 @MainActor
+protocol PlaybackEndUserNotificationCenter: AnyObject {
+    func requestAuthorization(
+        options: UNAuthorizationOptions,
+        completionHandler: @escaping @Sendable (Bool, Error?) -> Void
+    )
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String])
+    func add(
+        _ request: UNNotificationRequest,
+        withCompletionHandler completionHandler: (@Sendable (Error?) -> Void)?
+    )
+}
+
+extension UNUserNotificationCenter: PlaybackEndUserNotificationCenter {}
+
+@MainActor
 final class LocalPlaybackEndNotificationScheduler: PlaybackEndNotificationScheduling {
     static let requestIdentifier = "isleWhispers.playbackEnded"
-    static let notificationTitle = "播放已结束"
 
-    private let center: UNUserNotificationCenter
+    private let center: PlaybackEndUserNotificationCenter
+    private let localizationBundle: Bundle
     private var generation: UUID?
 
-    init(center: UNUserNotificationCenter = .current()) {
+    init(
+        center: PlaybackEndUserNotificationCenter = UNUserNotificationCenter.current(),
+        localizationBundle: Bundle = .main
+    ) {
         self.center = center
+        self.localizationBundle = localizationBundle
+    }
+
+    static func notificationTitle(bundle: Bundle = .main) -> String {
+        L10n.text("notification.playback_ended.title", bundle: bundle)
     }
 
     func requestAuthorization() {
@@ -31,7 +54,7 @@ final class LocalPlaybackEndNotificationScheduler: PlaybackEndNotificationSchedu
             Task { @MainActor in
                 guard let self, granted, self.generation == token else { return }
                 let content = UNMutableNotificationContent()
-                content.title = Self.notificationTitle
+                content.title = Self.notificationTitle(bundle: self.localizationBundle)
                 content.sound = .default
                 let trigger = UNTimeIntervalNotificationTrigger(
                     timeInterval: max(deadline.timeIntervalSinceNow, 1),
@@ -42,7 +65,8 @@ final class LocalPlaybackEndNotificationScheduler: PlaybackEndNotificationSchedu
                         identifier: Self.requestIdentifier,
                         content: content,
                         trigger: trigger
-                    )
+                    ),
+                    withCompletionHandler: nil
                 )
             }
         }

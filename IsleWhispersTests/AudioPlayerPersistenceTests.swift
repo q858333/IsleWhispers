@@ -452,14 +452,117 @@ final class AudioPlayerPersistenceTests: XCTestCase {
     }
 
     @MainActor
-    func testPreparesBundledDefaultSound() {
+    func testPlaybackStatusesUseInjectedEnglishSimplifiedAndTraditionalChineseBundles() throws {
         let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let missingResources = try makeResourceBundle()
+        let invalidAudioResources = try makeResourceBundle(includingInvalidAudio: true)
 
-        let service = AudioPlayerService(defaults: defaults, configureSystemIntegration: false)
+        let expectations = [
+            ("en", "Ready", "Audio Unavailable", "Audio Decode Failed"),
+            ("zh-Hans", "准备就绪", "音频资源不可用", "音频解码失败"),
+            ("zh-Hant", "準備就緒", "音訊資源無法使用", "音訊解碼失敗")
+        ]
 
-        XCTAssertEqual(service.statusMessage, "准备就绪")
-        defaults.removePersistentDomain(forName: suite)
+        for (language, ready, resourceUnavailable, decodeFailed) in expectations {
+            let localizationBundle = try LocalizationTestSupport.bundle(language)
+            let readyService = AudioPlayerService(
+                defaults: defaults,
+                configureSystemIntegration: false,
+                localizationBundle: localizationBundle
+            )
+            let missingService = AudioPlayerService(
+                defaults: defaults,
+                configureSystemIntegration: false,
+                resourceBundle: missingResources,
+                localizationBundle: localizationBundle
+            )
+            let decodeFailureService = AudioPlayerService(
+                defaults: defaults,
+                configureSystemIntegration: false,
+                resourceBundle: invalidAudioResources,
+                localizationBundle: localizationBundle
+            )
+
+            XCTAssertEqual(readyService.status, .ready, language)
+            XCTAssertEqual(readyService.statusMessage, ready, language)
+            XCTAssertEqual(missingService.status, .resourceUnavailable, language)
+            XCTAssertEqual(missingService.statusMessage, resourceUnavailable, language)
+            XCTAssertEqual(decodeFailureService.status, .decodeFailed, language)
+            XCTAssertEqual(decodeFailureService.statusMessage, decodeFailed, language)
+        }
+    }
+
+    @MainActor
+    func testPlaybackStatusIdentityDoesNotDependOnLocalizedCopy() throws {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let missingResources = try makeResourceBundle()
+
+        let englishService = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            resourceBundle: missingResources,
+            localizationBundle: try LocalizationTestSupport.bundle("en")
+        )
+        let traditionalChineseService = AudioPlayerService(
+            defaults: defaults,
+            configureSystemIntegration: false,
+            resourceBundle: missingResources,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hant")
+        )
+
+        XCTAssertEqual(englishService.status, .resourceUnavailable)
+        XCTAssertEqual(traditionalChineseService.status, .resourceUnavailable)
+        XCTAssertNotEqual(englishService.statusMessage, traditionalChineseService.statusMessage)
+    }
+
+    @MainActor
+    func testNowPlayingMetadataUsesInjectedLocalizedSoundCopy() throws {
+        let suite = "AudioPlayerPersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let expectations = [
+            ("en", "Rain", "A steady rhythm against the window"),
+            ("zh-Hans", "雨声", "均匀落在窗边"),
+            ("zh-Hant", "雨聲", "均勻落在窗邊")
+        ]
+
+        for (language, title, albumTitle) in expectations {
+            let service = AudioPlayerService(
+                defaults: defaults,
+                configureSystemIntegration: false,
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            let info = service.nowPlayingInfo()
+
+            XCTAssertEqual(info[MPMediaItemPropertyTitle] as? String, title, language)
+            XCTAssertEqual(info[MPMediaItemPropertyAlbumTitle] as? String, albumTitle, language)
+            XCTAssertEqual(info[MPNowPlayingInfoPropertyPlaybackRate] as? Double, 0, language)
+        }
+    }
+
+    private func makeResourceBundle(includingInvalidAudio: Bool = false) throws -> Bundle {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let bundleURL = rootURL.appendingPathComponent("AudioResources.bundle", isDirectory: true)
+        let audioURL = bundleURL.appendingPathComponent("Audio", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: audioURL,
+            withIntermediateDirectories: true
+        )
+        if includingInvalidAudio {
+            try Data("not a valid audio file".utf8).write(
+                to: audioURL.appendingPathComponent("2_sound_rain.caf")
+            )
+        }
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        return try XCTUnwrap(Bundle(url: bundleURL))
     }
 
     @MainActor
