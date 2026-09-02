@@ -3,6 +3,7 @@ use_frameworks! :linkage => :static
 
 target 'IsleWhispers' do
   pod 'SnapKit', '~> 5.7'
+  pod 'YYText', '~> 1.0.7'
 
   target 'IsleWhispersTests' do
     inherit! :search_paths

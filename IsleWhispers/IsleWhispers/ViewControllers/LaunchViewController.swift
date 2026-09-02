@@ -1,6 +1,7 @@
 import SafariServices
 import SnapKit
 import UIKit
+import YYText
 
 @MainActor
 final class LaunchViewController: UIViewController {
@@ -17,6 +18,7 @@ final class LaunchViewController: UIViewController {
     private let unavailableHandler: ((String) -> Void)?
     private let onContinue: @MainActor () -> Void
     private weak var agreementView: UIView?
+    private weak var agreementActionsStackView: UIStackView?
     private var routeWasScheduled = false
 
     init(
@@ -55,6 +57,18 @@ final class LaunchViewController: UIViewController {
         if agreementDefaults.bool(forKey: Self.agreementAcceptedDefaultsKey) {
             startRoutingIfNeeded()
         }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateAgreementActionsAxis()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        guard previousTraitCollection?.preferredContentSizeCategory
+            != traitCollection.preferredContentSizeCategory else { return }
+        updateAgreementActionsAxis()
     }
 
     static func scheduleRoute(_ route: @escaping @MainActor () -> Void) {
@@ -122,43 +136,23 @@ final class LaunchViewController: UIViewController {
         scrollView.addSubview(scrollContentView)
 
         let card = UIView()
-        card.backgroundColor = AppTheme.surface
-        card.applyRoundedCorners()
+        card.backgroundColor = UIColor {
+            $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.13, green: 0.12, blue: 0.12, alpha: 1)
+                : UIColor(red: 1, green: 0.98, blue: 0.95, alpha: 1)
+        }
+        card.applyRoundedCorners(radius: 28)
+        card.applySubtleShadow()
         scrollContentView.addSubview(card)
 
         let titleLabel = UILabel()
         titleLabel.text = "欢迎使用 IsleWhispers"
         titleLabel.font = AppTheme.font(.title2, weight: .bold)
         titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.numberOfLines = 0
         titleLabel.textAlignment = .center
 
-        let messageLabel = UILabel()
-        messageLabel.text = "请阅读并同意用户协议和隐私政策后继续使用。"
-        messageLabel.font = AppTheme.font(.body)
-        messageLabel.adjustsFontForContentSizeCategory = true
-        messageLabel.numberOfLines = 0
-        messageLabel.textAlignment = .center
-
-        let termsButton = UIButton(type: .system)
-        termsButton.accessibilityIdentifier = "launch.agreement.terms"
-        termsButton.setTitle("用户协议", for: .normal)
-        termsButton.titleLabel?.font = AppTheme.font(.body, weight: .semibold)
-        termsButton.titleLabel?.adjustsFontForContentSizeCategory = true
-        termsButton.addTarget(self, action: #selector(showTerms), for: .touchUpInside)
-
-        let privacyButton = UIButton(type: .system)
-        privacyButton.accessibilityIdentifier = "launch.agreement.privacy"
-        privacyButton.setTitle("隐私政策", for: .normal)
-        privacyButton.titleLabel?.font = AppTheme.font(.body, weight: .semibold)
-        privacyButton.titleLabel?.adjustsFontForContentSizeCategory = true
-        privacyButton.addTarget(self, action: #selector(showPrivacy), for: .touchUpInside)
-
-        let linksStackView = UIStackView(arrangedSubviews: [termsButton, privacyButton])
-        linksStackView.axis = traitCollection.preferredContentSizeCategory.isAccessibilityCategory
-            ? .vertical
-            : .horizontal
-        linksStackView.alignment = .fill
-        linksStackView.distribution = .fillEqually
+        let messageLabel = makeAgreementCopy()
 
         let acceptButton = UIButton(type: .system)
         acceptButton.accessibilityIdentifier = "launch.agreement.accept"
@@ -176,19 +170,26 @@ final class LaunchViewController: UIViewController {
         declineButton.titleLabel?.font = AppTheme.font(.body, weight: .semibold)
         declineButton.titleLabel?.adjustsFontForContentSizeCategory = true
         declineButton.setTitleColor(AppTheme.accentForeground, for: .normal)
+        declineButton.backgroundColor = AppTheme.warmCream.withAlphaComponent(0.48)
+        declineButton.applyRoundedCorners(radius: 14)
         declineButton.addTarget(self, action: #selector(declineAgreement), for: .touchUpInside)
+
+        let actionsStackView = UIStackView(arrangedSubviews: [declineButton, acceptButton])
+        actionsStackView.accessibilityIdentifier = "launch.agreement.actions"
+        agreementActionsStackView = actionsStackView
+        actionsStackView.axis = agreementActionsAxis
+        actionsStackView.alignment = .fill
+        actionsStackView.distribution = .fillEqually
+        actionsStackView.spacing = 12
 
         let stackView = UIStackView(arrangedSubviews: [
             titleLabel,
             messageLabel,
-            linksStackView,
-            acceptButton,
-            declineButton
+            actionsStackView
         ])
         stackView.axis = .vertical
-        stackView.spacing = 12
-        stackView.setCustomSpacing(20, after: messageLabel)
-        stackView.setCustomSpacing(20, after: linksStackView)
+        stackView.spacing = 18
+        stackView.setCustomSpacing(24, after: messageLabel)
         card.addSubview(stackView)
 
         overlay.snp.makeConstraints { make in
@@ -206,20 +207,14 @@ final class LaunchViewController: UIViewController {
             make.centerY.equalToSuperview()
             make.leading.equalToSuperview().offset(24)
             make.trailing.equalToSuperview().offset(-24)
+            make.width.lessThanOrEqualTo(420)
             make.top.greaterThanOrEqualToSuperview().offset(24)
             make.bottom.lessThanOrEqualToSuperview().offset(-24)
         }
         stackView.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(24)
-        }
-        linksStackView.snp.makeConstraints { make in
-            make.height.greaterThanOrEqualTo(44)
-        }
-        termsButton.snp.makeConstraints { make in
-            make.height.greaterThanOrEqualTo(44)
-        }
-        privacyButton.snp.makeConstraints { make in
-            make.height.greaterThanOrEqualTo(44)
+            make.edges.equalToSuperview().inset(
+                UIEdgeInsets(top: 28, left: 24, bottom: 24, right: 24)
+            )
         }
         acceptButton.snp.makeConstraints { make in
             make.height.greaterThanOrEqualTo(52)
@@ -227,6 +222,83 @@ final class LaunchViewController: UIViewController {
         declineButton.snp.makeConstraints { make in
             make.height.greaterThanOrEqualTo(44)
         }
+    }
+
+    private var agreementActionsAxis: NSLayoutConstraint.Axis {
+        let usesAccessibilityText = traitCollection.preferredContentSizeCategory.isAccessibilityCategory
+            || UITraitCollection.current.preferredContentSizeCategory.isAccessibilityCategory
+        let isNarrow = view.bounds.width > 0 && view.bounds.width < 360
+        return usesAccessibilityText || isNarrow ? .vertical : .horizontal
+    }
+
+    private func updateAgreementActionsAxis() {
+        let desiredAxis = agreementActionsAxis
+        guard agreementActionsStackView?.axis != desiredAxis else { return }
+        agreementActionsStackView?.axis = desiredAxis
+    }
+
+    private func makeAgreementCopy() -> YYLabel {
+        let message = "请阅读并同意《用户协议》和《隐私政策》后继续使用。"
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        paragraphStyle.lineSpacing = 5
+        let text = NSMutableAttributedString(
+            string: message,
+            attributes: [
+                .font: AppTheme.font(.body),
+                .foregroundColor: AppTheme.muted,
+                .paragraphStyle: paragraphStyle
+            ]
+        )
+        addAgreementHighlight("用户协议", to: text) { [weak self] in
+            self?.showTerms()
+        }
+        addAgreementHighlight("隐私政策", to: text) { [weak self] in
+            self?.showPrivacy()
+        }
+
+        let label = YYLabel()
+        label.accessibilityIdentifier = "launch.agreement.copy"
+        label.attributedText = text
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.preferredMaxLayoutWidth = 360
+        label.isAccessibilityElement = true
+        label.accessibilityLabel = message
+        label.accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: "打开用户协议") { [weak self] _ in
+                guard let self else { return false }
+                self.showTerms()
+                return true
+            },
+            UIAccessibilityCustomAction(name: "打开隐私政策") { [weak self] _ in
+                guard let self else { return false }
+                self.showPrivacy()
+                return true
+            }
+        ]
+        return label
+    }
+
+    private func addAgreementHighlight(
+        _ title: String,
+        to text: NSMutableAttributedString,
+        action: @escaping () -> Void
+    ) {
+        let range = (text.string as NSString).range(of: title)
+        guard range.location != NSNotFound else { return }
+
+        text.addAttributes(
+            [
+                .foregroundColor: AppTheme.accentForeground,
+                .font: AppTheme.font(.body, weight: .semibold)
+            ],
+            range: range
+        )
+        let highlight = YYTextHighlight()
+        highlight.setColor(AppTheme.accentForeground)
+        highlight.tapAction = { _, _, _, _ in action() }
+        text.yy_setTextHighlight(highlight, range: range)
     }
 
     @objc private func acceptAgreement() {

@@ -1,5 +1,6 @@
 import UIKit
 import XCTest
+import YYText
 @testable import IsleWhispers
 
 @MainActor
@@ -183,10 +184,19 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         )
         launch.loadViewIfNeeded()
 
-        try XCTUnwrap(view("launch.agreement.terms", in: launch.view) as? UIButton)
-            .sendActions(for: .touchUpInside)
-        try XCTUnwrap(view("launch.agreement.privacy", in: launch.view) as? UIButton)
-            .sendActions(for: .touchUpInside)
+        let copyLabel = try XCTUnwrap(
+            view("launch.agreement.copy", in: launch.view) as? YYLabel
+        )
+        let attributedText = try XCTUnwrap(copyLabel.attributedText)
+        let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
+        for title in ["用户协议", "隐私政策"] {
+            let range = (attributedText.string as NSString).range(of: title)
+            let highlight = try XCTUnwrap(
+                attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil)
+                    as? YYTextHighlight
+            )
+            highlight.tapAction?(copyLabel, attributedText, range, .zero)
+        }
 
         XCTAssertEqual(unavailableTitles, ["用户协议", "隐私政策"])
     }
@@ -195,34 +205,79 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        var launch: LaunchViewController!
-        UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge)
-            .performAsCurrent {
-                launch = LaunchViewController(
-                    agreementDefaults: defaults,
-                    scheduleRoute: { _ in },
-                    onContinue: {}
-                )
-                launch.loadViewIfNeeded()
-            }
+        let launch = LaunchViewController(
+            agreementDefaults: defaults,
+            scheduleRoute: { _ in },
+            onContinue: {}
+        )
+        let parent = UIViewController()
+        let accessibilityTraits = UITraitCollection(
+            preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge
+        )
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 568))
-        window.rootViewController = launch
+        window.rootViewController = parent
         window.makeKeyAndVisible()
-        launch.view.frame = window.bounds
+        parent.addChild(launch)
+        parent.setOverrideTraitCollection(accessibilityTraits, forChild: launch)
+        accessibilityTraits.performAsCurrent {
+            parent.view.addSubview(launch.view)
+        }
+        launch.view.frame = parent.view.bounds
+        launch.didMove(toParent: parent)
         launch.view.layoutIfNeeded()
 
         let acceptButton = try XCTUnwrap(view("launch.agreement.accept", in: launch.view))
         let declineButton = try XCTUnwrap(view("launch.agreement.decline", in: launch.view))
+        let actions = try XCTUnwrap(
+            view("launch.agreement.actions", in: launch.view) as? UIStackView
+        )
+        let titleLabel = try XCTUnwrap(
+            label("欢迎使用 IsleWhispers", in: launch.view)
+        )
         let acceptFrame = acceptButton.convert(acceptButton.bounds, to: launch.view)
         let declineFrame = declineButton.convert(declineButton.bounds, to: launch.view)
+        let naturalTitleWidth = titleLabel.sizeThatFits(
+            CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        ).width
 
+        XCTAssertEqual(actions.axis, .vertical)
+        XCTAssertTrue(
+            naturalTitleWidth <= titleLabel.bounds.width + 0.5 || titleLabel.numberOfLines == 0,
+            "标题超出可用宽度时必须允许换行"
+        )
         XCTAssertGreaterThanOrEqual(acceptFrame.minY, 0)
         XCTAssertLessThanOrEqual(declineFrame.maxY, launch.view.bounds.maxY)
         XCTAssertGreaterThanOrEqual(acceptFrame.height, 52)
         XCTAssertGreaterThanOrEqual(declineFrame.height, 44)
     }
 
-    func testAgreementLinkButtonsMeetMinimumTouchTarget() throws {
+    func testAgreementVoiceOverActionsOpenBothDocuments() throws {
+        let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var unavailableTitles: [String] = []
+        let launch = LaunchViewController(
+            agreementDefaults: defaults,
+            links: AppSupportLinks(privacyPolicyURL: nil, termsOfUseURL: nil, supportURL: nil),
+            scheduleRoute: { _ in },
+            unavailableHandler: { unavailableTitles.append($0) },
+            onContinue: {}
+        )
+        launch.loadViewIfNeeded()
+
+        let copyLabel = try XCTUnwrap(
+            view("launch.agreement.copy", in: launch.view) as? YYLabel
+        )
+        let actions = try XCTUnwrap(copyLabel.accessibilityCustomActions)
+        XCTAssertEqual(actions.map(\.name), ["打开用户协议", "打开隐私政策"])
+        for action in actions {
+            XCTAssertEqual(action.actionHandler?(action), true)
+        }
+
+        XCTAssertEqual(unavailableTitles, ["用户协议", "隐私政策"])
+    }
+
+    func testAgreementEmbedsDocumentActionsInInteractiveRichText() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -235,11 +290,36 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         launch.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         launch.view.layoutIfNeeded()
 
-        let termsButton = try XCTUnwrap(view("launch.agreement.terms", in: launch.view))
-        let privacyButton = try XCTUnwrap(view("launch.agreement.privacy", in: launch.view))
+        let copyView = try XCTUnwrap(view("launch.agreement.copy", in: launch.view))
+        XCTAssertEqual(String(describing: type(of: copyView)), "YYLabel")
+        XCTAssertEqual(
+            copyView.accessibilityCustomActions?.map(\.name),
+            ["打开用户协议", "打开隐私政策"]
+        )
+        XCTAssertEqual(
+            (view("launch.agreement.actions", in: launch.view) as? UIStackView)?.axis,
+            .horizontal
+        )
+        let attributedText = try XCTUnwrap(
+            copyView.value(forKey: "attributedText") as? NSAttributedString
+        )
+        let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
+        for title in ["用户协议", "隐私政策"] {
+            let range = (attributedText.string as NSString).range(of: title)
+            XCTAssertNotEqual(range.location, NSNotFound, title)
+            XCTAssertNotNil(
+                attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil),
+                title
+            )
+            XCTAssertEqual(
+                attributedText.attribute(.foregroundColor, at: range.location, effectiveRange: nil) as? UIColor,
+                AppTheme.accentForeground,
+                title
+            )
+        }
 
-        XCTAssertGreaterThanOrEqual(termsButton.bounds.height, 44)
-        XCTAssertGreaterThanOrEqual(privacyButton.bounds.height, 44)
+        XCTAssertNil(view("launch.agreement.terms", in: launch.view))
+        XCTAssertNil(view("launch.agreement.privacy", in: launch.view))
     }
 }
 
@@ -249,4 +329,12 @@ private func view(_ identifier: String, in root: UIView) -> UIView? {
         return root
     }
     return root.subviews.lazy.compactMap { view(identifier, in: $0) }.first
+}
+
+@MainActor
+private func label(_ text: String, in root: UIView) -> UILabel? {
+    if let label = root as? UILabel, label.text == text {
+        return label
+    }
+    return root.subviews.lazy.compactMap { label(text, in: $0) }.first
 }
