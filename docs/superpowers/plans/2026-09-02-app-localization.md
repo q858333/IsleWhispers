@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 IsleWhispers 的全部用户可见文案统一迁移到英文源语言、简体中文翻译的本地化体系，跟随 iOS 语言设置并在不支持的语言下回退英文。
+**Goal:** 将 IsleWhispers 的全部用户可见文案统一迁移到英文源语言、简体中文与通用繁體中文翻译的本地化体系，跟随 iOS 语言设置并在不支持的语言下回退英文。
 
-**Architecture:** 使用一个 `Localizable.xcstrings` 保存运行时文案，使用轻量 `L10n` 从可注入的 `Bundle` 读取和格式化字符串；声音仍以 `audioResource` 作为稳定身份，展示名称改为按 Bundle 计算。各页面和服务默认使用 `.main`，测试传入 `en.lproj` 或 `zh-Hans.lproj`，不修改 `AppleLanguages`。系统 LaunchScreen 以英文 Base 文案为回退，并用 `zh-Hans.lproj/LaunchScreen.strings` 覆盖简体中文。
+**Architecture:** 使用一个 `Localizable.xcstrings` 保存运行时文案，使用轻量 `L10n` 从可注入的 `Bundle` 读取和格式化字符串；声音仍以 `audioResource` 作为稳定身份，展示名称改为按 Bundle 计算。各页面和服务默认使用 `.main`，测试传入 `en.lproj`、`zh-Hans.lproj` 或 `zh-Hant.lproj`，不修改 `AppleLanguages`。系统 LaunchScreen 以英文 Base 文案为回退，并用 `zh-Hans.lproj/LaunchScreen.strings` 与 `zh-Hant.lproj/LaunchScreen.strings` 覆盖两种中文。
 
 **Tech Stack:** Swift 5、UIKit、Xcode String Catalog、SnapKit、YYText、XCTest、CocoaPods
 
@@ -12,11 +12,11 @@
 
 ## Global Constraints
 
-- 英文是 `developmentRegion`、源语言和不支持语言的回退；仅新增 `zh-Hans`，不增加繁体中文。
+- 英文是 `developmentRegion`、源语言和不支持语言的回退；新增 `zh-Hans` 与通用 `zh-Hant`，不拆分 `zh-TW`/`zh-HK`。
 - 生产代码不得设置或覆盖 `AppleLanguages`，不得新增 App 内语言切换入口。
 - `audioResource`、`backgroundResource`、声音顺序、最近播放存储值、URL、邮箱、UserDefaults key、通知 identifier 和 accessibility identifier 保持原值。
 - `IsleWhispers` 品牌名、音频/图片文件名和技术诊断文本不翻译。
-- 所有可见文本、VoiceOver、通知、Now Playing、邮件主题和错误状态都必须来自本地化资源。
+- 所有可见文本、VoiceOver、通知、Now Playing、邮件主题和错误状态都必须来自本地化资源；每个 Catalog key 必须同时有 `en`、`zh-Hans`、`zh-Hant` 的非空值。
 - 不修改 `Pods/`，不通过关闭项目级警告掩盖 YYText 1.0.7 的上游弃用警告。
 - 每个任务先运行指定 RED 测试并确认按预期失败，再做最小实现并运行 GREEN；只暂存该任务列出的文件，提交信息使用中文。
 - 所有命令从 `/Users/db/Documents/git/my/IsleWhispers/IsleWhispers/.worktrees/launch-agreement-rich-text/IsleWhispers` 执行。
@@ -53,8 +53,8 @@ enum LocalizationTestSupport {
 
 ```swift
 final class LocalizationTests: XCTestCase {
-    func testEnglishIsDevelopmentLanguageAndSimplifiedChineseIsPackaged() throws
-    func testEnglishAndSimplifiedChineseHaveIdenticalNonemptyKeys() throws
+func testEnglishIsDevelopmentLanguageAndBothChineseLocalesArePackaged() throws
+func testAllThreeLocalesHaveIdenticalNonemptyKeys() throws
     func testUnsupportedLanguageResolutionFallsBackToEnglish() throws
     func testFormattingUsesInjectedBundleAndLocale() throws
 }
@@ -63,13 +63,13 @@ final class LocalizationTests: XCTestCase {
 测试要断言：
 
 - `Bundle.main.object(forInfoDictionaryKey: "CFBundleDevelopmentRegion") as? String == "en"`。
-- `en.lproj` 和 `zh-Hans.lproj` 均能从 App Bundle 解析。
-- 读取源码 `Localizable.xcstrings` 后，两种语言的 key 集合完全一致且值非空。
-- `L10n.bundle(for: "fr", in: .main)` 返回英文 lproj；`zh-Hans` 返回中文 lproj。
-- 英文 `about.version.format` 格式化为 `Version 1.2.3`，中文为 `版本 1.2.3`。
-- 英文 `timer.duration.minutes` 在 1/2 时分别为 `1 minute`/`2 minutes`，中文为 `1 分钟`/`2 分钟`。
+- `en.lproj`、`zh-Hans.lproj` 和 `zh-Hant.lproj` 均能从 App Bundle 解析。
+- 读取源码 `Localizable.xcstrings` 后，三种语言的 key 集合完全一致且值非空。
+- `L10n.bundle(for: "fr", in: .main)` 返回英文 lproj；`zh-Hans` 返回简体中文 Bundle，`zh-Hant` 返回繁體中文 Bundle。
+- 英文 `about.version.format` 格式化为 `Version 1.2.3`，简体中文为 `版本 1.2.3`，繁體中文为 `版本 1.2.3`。
+- 英文 `timer.duration.minutes` 在 1/2 时分别为 `1 minute`/`2 minutes`；简体中文为 `1 分钟`/`2 分钟`；繁體中文为 `1 分鐘`/`2 分鐘`。
 
-- [ ] **Step 2: 运行 RED，确认缺少 `L10n`/Catalog/zh-Hans**
+- [ ] **Step 2: 运行 RED，确认缺少 `L10n`/Catalog/两种中文资源**
 
 ```bash
 xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
@@ -78,7 +78,7 @@ xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
   -only-testing:IsleWhispersTests/LocalizationTests test CODE_SIGNING_ALLOWED=NO
 ```
 
-Expected: 编译因 `L10n` 不存在而失败，或测试因 `zh-Hans.lproj`/Catalog 不存在而失败；不得把环境启动失败当作 RED。
+Expected: 编译因 `L10n` 不存在而失败，或测试因 `zh-Hans.lproj`、`zh-Hant.lproj` 或 Catalog 不存在而失败；不得把环境启动失败当作 RED。
 
 - [ ] **Step 3: 实现最小 `L10n`**
 
@@ -121,7 +121,7 @@ enum L10n {
 
 - [ ] **Step 4: 建立完整 key 清单和翻译**
 
-`Localizable.xcstrings` 设置 `sourceLanguage: "en"`，为以下 key 提供完整 `en` / `zh-Hans`。英文与中文值按表执行；格式参数保留在 Catalog 中，调用方不得拼接语序。
+`Localizable.xcstrings` 设置 `sourceLanguage: "en"`，为以下 key 提供完整 `en` / `zh-Hans` / `zh-Hant`。英文、简体中文与繁體中文值按表执行；格式参数保留在 Catalog 中，调用方不得拼接语序。
 
 | Key | English | 简体中文 |
 |---|---|---|
@@ -220,6 +220,105 @@ enum L10n {
 | `help.email.copied.title` | Email Copied | 邮箱已复制 |
 | `help.website.unavailable` | Online help will be available before release. | 在线帮助将在正式发布前补充。 |
 
+以下为同一组 key 必须写入 Catalog 的 `zh-Hant` 值；表中值均为通用繁體中文，不按地区拆分，不能以简体中文值或自动转换替代。
+
+| Key | 繁體中文（`zh-Hant`） |
+|---|---|
+| `common.ok` | 好 |
+| `common.cancel` | 取消 |
+| `common.retry` | 重試 |
+| `common.content_unavailable.title` | 內容準備中 |
+| `common.content_unavailable.message.format` | %@ 將在正式發布前補充。 |
+| `launch.subtitle` | 聆聽自然，放鬆此刻 |
+| `launch.agreement.title` | 歡迎使用 IsleWhispers |
+| `launch.agreement.body` | 請閱讀並同意《使用者協議》和《隱私權政策》後繼續使用。 |
+| `launch.agreement.terms` | 使用者協議 |
+| `launch.agreement.privacy` | 隱私權政策 |
+| `launch.agreement.accept` | 同意並繼續 |
+| `launch.agreement.decline` | 暫不同意 |
+| `launch.agreement.required.title` | 需要同意後繼續 |
+| `launch.agreement.required.message` | 請閱讀並同意使用者協議和隱私權政策後繼續使用 IsleWhispers。 |
+| `launch.agreement.open_terms` | 開啟使用者協議 |
+| `launch.agreement.open_privacy` | 開啟隱私權政策 |
+| `tab.home` | 首頁 |
+| `tab.sounds` | 聲音 |
+| `tab.settings` | 設定 |
+| `home.greeting` | 此刻 · 聽見島嶼 |
+| `home.action.mute` | 靜音 |
+| `home.action.unmute` | 恢復聲音 |
+| `home.action.recent` | 最近播放 |
+| `home.action.open_player` | 開啟播放頁 |
+| `home.action.play_and_open` | 開始播放並開啟播放頁 |
+| `home.mute.on` | 已靜音 |
+| `home.mute.off` | 聲音已開啟 |
+| `home.retry.hint` | 重新載入目前聲音 |
+| `carousel.label` | 環境聲音 |
+| `carousel.position.format` | %@，%lld / %lld |
+| `sound.accessibility.title_subtitle.format` | %@：%@ |
+| `recent.title` | 最近播放 |
+| `recent.list.label` | 最近播放列表 |
+| `recent.close` | 關閉最近播放 |
+| `recent.empty.title` | 尚無最近播放 |
+| `recent.empty.detail` | 你播放過的聲音會顯示在這裡。 |
+| `library.title` | 聲音庫 |
+| `library.list.label` | 聲音庫 |
+| `focus.sound_picker.label` | 切換聲音 |
+| `focus.sound_picker.current.format` | 切換聲音，目前為 %@ |
+| `focus.sound_picker.hint` | 開啟聲音選擇 |
+| `focus.countdown.label` | 設定倒數計時 |
+| `focus.close` | 關閉播放頁 |
+| `focus.play` | 繼續播放 |
+| `focus.pause` | 暫停播放 |
+| `focus.retry.label` | 重試播放 |
+| `focus.countdown.unlimited` | 不限時 |
+| `focus.countdown.remaining.format` | 剩餘 %@ |
+| `focus.countdown.ended` | 倒數計時已結束 |
+| `focus.timer.sheet.title` | 設定倒數計時 |
+| `timer.option.unlimited` | 不限時 |
+| `timer.option.short_unlimited` | 不限 |
+| `timer.option.minutes15` | 15 分鐘 |
+| `timer.option.minutes30` | 30 分鐘 |
+| `timer.option.minutes60` | 60 分鐘 |
+| `timer.duration.minutes_seconds.format` | %1$lld 分 %2$lld 秒 |
+| `timer.accessibility.option.format` | 睡眠計時：%@ |
+| `player.status.ready` | 準備就緒 |
+| `player.status.session_unavailable` | 音訊工作階段無法使用 |
+| `player.status.playback_failed` | 音訊播放失敗 |
+| `player.status.decode_failed` | 音訊解碼失敗 |
+| `player.status.resource_unavailable` | 音訊資源無法使用 |
+| `notification.playback_ended.title` | 播放已結束 |
+| `settings.title` | 設定 |
+| `settings.subtitle` | 了解 App 資訊、取得協助並聯絡支援。 |
+| `settings.about.title` | 關於 IsleWhispers |
+| `settings.about.detail` | 版本、隱私權政策與使用者協議 |
+| `settings.help.title` | 說明與意見回饋 |
+| `settings.help.detail` | 常見問題與支援信箱 |
+| `about.title` | 關於 IsleWhispers |
+| `about.tagline` | 為專注、放鬆與睡眠而設的環境聲音播放器 |
+| `about.version.format` | 版本 %@ |
+| `about.local_privacy` | 聲音選擇、最近播放和計時偏好只會保留在這部裝置上。App 不會上傳音訊、建立使用者帳號或追蹤你。 |
+| `about.privacy` | 隱私權政策 |
+| `about.terms` | 使用者協議 |
+| `help.title` | 說明與意見回饋 |
+| `help.faq.title` | 常見問題 |
+| `help.faq.playback.question` | 如何切換聲音？ |
+| `help.faq.playback.answer` | 在首頁向左或向右滑動，或從聲音庫選擇聲音。 |
+| `help.faq.timer.question` | 倒數計時如何運作？ |
+| `help.faq.timer.answer` | 可選擇不限時、15、30 或 60 分鐘；暫停播放時，倒數計時也會暫停。 |
+| `help.faq.background.question` | 如何在背景播放？ |
+| `help.faq.background.answer` | 開始播放後即可離開 App，也可從控制中心暫停或繼續播放。 |
+| `help.faq.notifications.question` | 為什麼沒有收到通知？ |
+| `help.faq.notifications.answer` | 請在系統設定中允許 IsleWhispers 傳送通知。 |
+| `help.contact.title` | 聯絡支援 |
+| `help.action.email` | 傳送電子郵件 |
+| `help.action.copy_email` | 複製電子郵件地址 |
+| `help.action.website` | 線上說明 |
+| `help.email.subject` | IsleWhispers 說明與意見回饋 |
+| `help.email.no_app` | 找不到郵件 App，已複製電子郵件地址。 |
+| `help.email.copied` | 已複製電子郵件地址。 |
+| `help.email.copied.title` | 已複製電子郵件地址 |
+| `help.website.unavailable` | 線上說明將在正式發布前補充。 |
+
 声音 key 完整加入：`sound.category.nature/life/atmosphere`，以及 `tea`、`thunder`、`rain`、`fire`、`water`、`wind`、`day`、`night`、`river`、`space`、`yacht`、`train`、`farm`、`chimes`、`whale` 每个 slug 的 `.title` 与 `.subtitle`。三类中文为 `自然`、`生活`、`氛围`，英文为 `Nature`、`Everyday`、`Atmosphere`。15 组文案精确使用：
 
 ```text
@@ -240,7 +339,27 @@ chimes: Wind Chimes — Clear, occasional echoes | 风铃 — 清脆稀疏回响
 whale: Whale Song — Long, low calls from the deep | 鲸歌 — 深海悠长低吟
 ```
 
-`timer.duration.minutes` 与 `timer.duration.seconds` 使用 String Catalog plural variations；英文分别提供 one/other（`%lld minute(s)`、`%lld second(s)`），中文 one/other 都使用 `%lld 分钟`、`%lld 秒`。
+`zh-Hant` 声音分类必须精确为 `自然`、`日常`、`氛圍`；15 组声音 title/subtitle 必须精确使用：
+
+```text
+tea: 茶香 — 茶與安靜器皿
+thunder: 雷聲 — 低沉而遙遠
+rain: 雨聲 — 均勻落在窗邊
+fire: 壁爐 — 輕柔木柴劈啪聲
+water: 流水 — 舒緩不斷的水流
+wind: 風聲 — 空氣緩緩流動
+day: 白晝 — 明亮的自然聲景
+night: 夜晚 — 深夜的安靜氛圍
+river: 河流 — 清澈水流的柔和節奏
+space: 太空 — 寬闊無重力的氛圍
+yacht: 遊艇 — 海風與船身的輕微吱呀聲
+train: 火車 — 漫長旅途的穩定節奏
+farm: 農場 — 開闊的鄉間聲景
+chimes: 風鈴 — 清澈而偶爾響起的回聲
+whale: 鯨歌 — 來自深海的悠長低鳴
+```
+
+`timer.duration.minutes` 与 `timer.duration.seconds` 使用 String Catalog plural variations；英文分别提供 one/other（`%lld minute(s)`、`%lld second(s)`），简体中文 one/other 都使用 `%lld 分钟`、`%lld 秒`，繁體中文 one/other 都使用 `%lld 分鐘`、`%lld 秒`。
 
 - [ ] **Step 5: 配置工程语言区域**
 
@@ -251,6 +370,7 @@ knownRegions = (
     en,
     Base,
     "zh-Hans",
+    "zh-Hant",
 );
 ```
 
@@ -267,9 +387,10 @@ xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
   build CODE_SIGNING_ALLOWED=NO
 test -f /tmp/islewhispers-localization-derived-data/Build/Products/Debug-iphonesimulator/IsleWhispers.app/en.lproj/Localizable.strings
 test -f /tmp/islewhispers-localization-derived-data/Build/Products/Debug-iphonesimulator/IsleWhispers.app/zh-Hans.lproj/Localizable.strings
+test -f /tmp/islewhispers-localization-derived-data/Build/Products/Debug-iphonesimulator/IsleWhispers.app/zh-Hant.lproj/Localizable.strings
 ```
 
-Expected: build 成功且两个编译后的 `Localizable.strings` 都存在。
+Expected: build 成功且三个编译后的 `Localizable.strings` 都存在。
 
 - [ ] **Step 7: 提交基础设施**
 
@@ -290,19 +411,19 @@ git commit -m "功能：建立英文默认的本地化基础"
 - Modify: `../IsleWhispersTests/SoundCatalogGroupingTests.swift`
 - Modify: `../IsleWhispersTests/RecentSoundsStoreTests.swift`
 
-- [ ] **Step 1: 为双语元数据和身份不变写 RED 测试**
+- [ ] **Step 1: 为三语元数据和身份不变写 RED 测试**
 
 在 `SoundCatalogGroupingTests` 增加：
 
 ```swift
-func testCatalogReturnsAllEnglishAndSimplifiedChineseMetadata() throws
+func testCatalogReturnsAllEnglishSimplifiedAndTraditionalChineseMetadata() throws
 func testCategoryTitlesUseInjectedLanguageBundle() throws
 func testLocalizedDisplayDoesNotChangeStableResourceIdentity() throws
 ```
 
-测试使用 `LocalizationTestSupport.bundle("en")` 与 `bundle("zh-Hans")`，精确断言 15 个英文标题、15 个中文标题、三个分类值，以及每项的 `id/audioResource/backgroundResource/category` 在两种语言读取前后完全相同。把原 `map(\.title)` 的中文分组断言改为按 `title(bundle:)` 显式验证。
+测试使用 `LocalizationTestSupport.bundle("en")`、`bundle("zh-Hans")` 与 `bundle("zh-Hant")`，精确断言 15 个英文、15 个简体中文、15 个繁體中文标题、三个语言版本的分类值，以及每项的 `id/audioResource/backgroundResource/category` 在三种语言读取前后完全相同。把原 `map(\.title)` 的中文分组断言改为按 `title(bundle:)` 显式验证。
 
-在 `RecentSoundsStoreTests` 增加：保存 `2_sound_rain` 后分别用英文/中文 Bundle 重新解析，ID 仍为 `2_sound_rain`，显示为 `Rain`/`雨声`。
+在 `RecentSoundsStoreTests` 增加：保存 `2_sound_rain` 后分别用英文、简体中文、繁體中文 Bundle 重新解析，ID 仍为 `2_sound_rain`，显示为 `Rain`/`雨声`/`雨聲`。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -360,7 +481,7 @@ struct Sound: Equatable, Hashable, Sendable, Identifiable {
 
 - [ ] **Step 4: 运行 GREEN 与现有持久化回归**
 
-重复 Step 2。Expected: 两组测试全部通过，15 个 CAF 解析测试仍通过。
+重复 Step 2。Expected: 两组测试全部通过，三语元数据与 15 个 CAF 解析测试仍通过。
 
 - [ ] **Step 5: 提交模型迁移**
 
@@ -387,13 +508,13 @@ git commit -m "功能：本地化声音与分类元数据"
 新增/调整测试覆盖：
 
 ```swift
-func testPlaybackStatusesUseInjectedEnglishAndChineseBundles() throws
+func testPlaybackStatusesUseInjectedEnglishSimplifiedAndTraditionalChineseBundles() throws
 func testPlaybackStatusIdentityDoesNotDependOnLocalizedCopy() throws
 func testNowPlayingMetadataUsesInjectedLocalizedSoundCopy() throws
 func testPlaybackEndNotificationTitleUsesInjectedBundle() throws
 ```
 
-为 `AudioPlayerService` 测试初始化新增 `localizationBundle:`；依次触发准备成功、缺资源、解码失败的可控路径，断言英文/中文状态。Now Playing 不直接读取全局 `MPNowPlayingInfoCenter`：把现有写入字典的内部组装提取为 `nowPlayingInfo()`（internal、`@MainActor`），测试 title/albumTitle 等显示字段，远程控制行为保持原样。通知测试以注入 bundle 的 scheduler 断言 content title；stable request identifier 仍精确为 `isleWhispers.playbackEnded`。
+为 `AudioPlayerService` 测试初始化新增 `localizationBundle:`；依次触发准备成功、缺资源、解码失败的可控路径，断言英文、简体中文、繁體中文状态。Now Playing 不直接读取全局 `MPNowPlayingInfoCenter`：把现有写入字典的内部组装提取为 `nowPlayingInfo()`（internal、`@MainActor`），测试三语 title/albumTitle 等显示字段，远程控制行为保持原样。通知测试以注入 bundle 的 scheduler 断言三语 content title；stable request identifier 仍精确为 `isleWhispers.playbackEnded`。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -466,24 +587,26 @@ git commit -m "功能：本地化播放状态与结束通知"
 - Modify: `IsleWhispers/ViewControllers/LaunchViewController.swift`
 - Modify: `IsleWhispers/Base.lproj/LaunchScreen.storyboard`
 - Create: `IsleWhispers/zh-Hans.lproj/LaunchScreen.strings`
+- Create: `IsleWhispers/zh-Hant.lproj/LaunchScreen.strings`
 - Modify: `../IsleWhispersTests/AppLaunchCoordinatorTests.swift`
 - Modify: `../IsleWhispersTests/AppConfigurationTests.swift`
 
-- [ ] **Step 1: 写英文/中文协议和 LaunchScreen RED 测试**
+- [ ] **Step 1: 写英文、简体中文、繁體中文协议和 LaunchScreen RED 测试**
 
 把 Launch 测试构造器统一扩展为可传 `localizationBundle:`，新增：
 
 ```swift
-func testAgreementCopyAndActionsAreLocalizedInEnglishAndChinese() throws
+func testAgreementCopyAndActionsAreLocalizedInAllThreeLanguages() throws
 func testAgreementHighlightsBothLocalizedDocumentNames() throws
 func testAgreementVoiceOverActionsUseLocalizedNames() throws
 func testEnglishAgreementActionsRemainReachableAt320By568WithAccessibilityText() throws
 func testSimplifiedChineseLaunchScreenOverrideExists() throws
+func testTraditionalChineseLaunchScreenOverrideExists() throws
 ```
 
-英文断言完整 body 中包含 `Terms of Use` 与 `Privacy Policy`，中文断言包含 `用户协议` 与 `隐私政策`；两种语言的 YYText highlight range 都非空、点击仍分别打开同一个 terms/privacy URL，VoiceOver custom actions 名称匹配当前 Bundle。小屏测试继续查按钮位于 scroll content 内且可滚动到达，不用固定字符串宽度。
+英文断言完整 body 中包含 `Terms of Use` 与 `Privacy Policy`，简体中文断言包含 `用户协议` 与 `隐私政策`，繁體中文断言包含 `使用者協議` 与 `隱私權政策`；三种语言的 YYText highlight range 都非空、点击仍分别打开同一个 terms/privacy URL，VoiceOver custom actions 名称匹配当前 Bundle。每种语言均断言正文中的协议名称与各自的 `launch.agreement.terms`、`launch.agreement.privacy` 值完全一致。小屏测试继续查按钮位于 scroll content 内且可滚动到达，不用固定字符串宽度。
 
-`AppConfigurationTests` 将 Base LaunchScreen 期望改为英文 `Listen to nature. Be here now.`，并读取 `zh-Hans.lproj/LaunchScreen.strings` 验证 `"lch-sub-txt.text" = "聆听自然，放松此刻";`。
+`AppConfigurationTests` 将 Base LaunchScreen 期望改为英文 `Listen to nature. Be here now.`，并读取 `zh-Hans.lproj/LaunchScreen.strings` 验证 `"lch-sub-txt.text" = "聆听自然，放松此刻";`，读取 `zh-Hant.lproj/LaunchScreen.strings` 验证 `"lch-sub-txt.text" = "聆聽自然，放鬆此刻";`。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -510,9 +633,9 @@ let addedPrivacy = addAgreementHighlight(privacy, to: text) { [weak self] in sel
 assert(addedTerms && addedPrivacy, "Localized agreement body must contain both document names")
 ```
 
-把 `addAgreementHighlight` 的返回值改为 `Bool`（找到并添加 highlight 时为 true），继续复用两个 URL 回调，不改变同意存储、延迟路由、设备上报时序。Debug assertion 提供开发期诊断；双语测试必须显式检查两个 range/highlight，资源缺失时测试失败而不是只依赖 assertion。
+把 `addAgreementHighlight` 的返回值改为 `Bool`（找到并添加 highlight 时为 true），继续复用两个 URL 回调，不改变同意存储、延迟路由、设备上报时序。Debug assertion 提供开发期诊断；三语测试必须显式检查两个 range/highlight，资源缺失时测试失败而不是只依赖 assertion。
 
-把 Base storyboard subtitle 改为英文回退；在 `zh-Hans.lproj/LaunchScreen.strings` 仅覆盖 subtitle object ID，品牌标题不重复翻译。
+把 Base storyboard subtitle 改为英文回退；在 `zh-Hans.lproj/LaunchScreen.strings` 与 `zh-Hant.lproj/LaunchScreen.strings` 仅覆盖 subtitle object ID，品牌标题不重复翻译。两份文件分别精确写入 `"lch-sub-txt.text" = "聆听自然，放松此刻";` 和 `"lch-sub-txt.text" = "聆聽自然，放鬆此刻";`。
 
 - [ ] **Step 4: 运行 GREEN 和 Launch 全套回归**
 
@@ -524,6 +647,7 @@ assert(addedTerms && addedPrivacy, "Localized agreement body must contain both d
 git add IsleWhispers/ViewControllers/LaunchViewController.swift \
   IsleWhispers/Base.lproj/LaunchScreen.storyboard \
   IsleWhispers/zh-Hans.lproj/LaunchScreen.strings \
+  IsleWhispers/zh-Hant.lproj/LaunchScreen.strings \
   ../IsleWhispersTests/AppLaunchCoordinatorTests.swift \
   ../IsleWhispersTests/AppConfigurationTests.swift
 git commit -m "功能：本地化启动页与协议弹窗"
@@ -545,19 +669,20 @@ git commit -m "功能：本地化启动页与协议弹窗"
 - Modify: `../IsleWhispersTests/RecentSoundsViewControllerTests.swift`
 - Modify: `../IsleWhispersTests/RootTabBarControllerTests.swift`
 
-- [ ] **Step 1: 写双语 UI 与 VoiceOver RED 测试**
+- [ ] **Step 1: 写三语 UI 与 VoiceOver RED 测试**
 
 各控制器/组件测试构造器增加注入 Bundle，新增：
 
 ```swift
 func testHomeVisibleCopyAndAccessibilityUseEnglishBundle() throws
-func testHomeVisibleCopyAndAccessibilityUseChineseBundle() throws
+func testHomeVisibleCopyAndAccessibilityUseSimplifiedChineseBundle() throws
+func testHomeVisibleCopyAndAccessibilityUseTraditionalChineseBundle() throws
 func testCarouselAccessibilityValueUsesLocalizedSoundAndPosition() throws
 func testRecentPageAndCellsUseInjectedLanguageBundle() throws
 func testRootTabTitlesUseInjectedLanguageBundle() throws
 ```
 
-通过已有 identifier 查 greeting、mute、recent、retry、play 控件；同时断言静音前后 label/value。Carousel 在边界增减后断言 `Rain, 3 of 15` / `雨声，3 / 15`。最近播放验证标题、空状态、关闭按钮及 cell 的 title/accessible copy。Tab 分别断言 `Home/Sounds/Settings` 和 `首页/声音/设置`；原 tab 背景、切换自动播放和最近记录测试继续保留。
+通过已有 identifier 查 greeting、mute、recent、retry、play 控件；同时断言静音前后 label/value。Carousel 在边界增减后断言 `Rain, 3 of 15` / `雨声，3 / 15` / `雨聲，3 / 15`。最近播放验证三语标题、空状态、关闭按钮及 cell 的 title/accessible copy。Tab 分别断言 `Home/Sounds/Settings`、`首页/声音/设置` 与 `首頁/聲音/設定`；原 tab 背景、切换自动播放和最近记录测试继续保留。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -628,11 +753,12 @@ git commit -m "功能：本地化首页与最近播放"
 
 ```swift
 func testEnglishLibraryUsesLocalizedTitleGroupsAndCards() throws
-func testChineseLibraryUsesLocalizedTitleGroupsAndCards() throws
+func testSimplifiedChineseLibraryUsesLocalizedTitleGroupsAndCards() throws
+func testTraditionalChineseLibraryUsesLocalizedTitleGroupsAndCards() throws
 func testEnglishCardsRemainReadableAt320WidthAndAccessibilitySize() throws
 ```
 
-分别注入 en/zh-Hans，断言标题、三个 section header、第一/最后卡片 title/subtitle/accessibility。英文小屏测试使用 320×568 与 `.accessibilityExtraExtraExtraLarge`，layout 后断言 collection content 可滚动、cell label 多行且所有可访问元素位于 cell bounds 内，不断言固定文本宽度。
+分别注入 en/zh-Hans/zh-Hant，断言标题、三个 section header、第一/最后卡片 title/subtitle/accessibility。繁體中文分类精确断言为 `自然`、`日常`、`氛圍`。英文及繁體中文小屏测试使用 320×568 与 `.accessibilityExtraExtraExtraLarge`，layout 后断言 collection content 可滚动、cell label 多行且所有可访问元素位于 cell bounds 内，不断言固定文本宽度。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -679,7 +805,8 @@ git commit -m "功能：本地化声音列表与分组"
 
 ```swift
 func testCountdownKeepsVisualClockAndUsesEnglishVoiceOverDuration() throws
-func testCountdownUsesChineseVoiceOverDuration() throws
+func testCountdownUsesSimplifiedChineseVoiceOverDuration() throws
+func testCountdownUsesTraditionalChineseVoiceOverDuration() throws
 func testTimerSheetAndPlaybackActionsUseInjectedLanguageBundle() throws
 func testEnglishFocusControlsFitAt320By568AndMaximumAccessibilityText() throws
 ```
@@ -687,9 +814,9 @@ func testEnglishFocusControlsFitAt320By568AndMaximumAccessibilityText() throws
 精确验证：
 
 - 可见数字时钟仍为 `15:00`/`00:09`，不本地化数字结构。
-- VoiceOver 分别为 `Remaining: 15 minutes`、`剩余 15 分钟`，1 minute/1 second 使用英文单数。
-- unlimited/expired、播放/暂停、关闭、重试、切换声音与 action sheet 选项双语正确。
-- 320×568 和 390×844 最大辅助字号下关键按钮不相交，超高内容可通过现有滚动容器访问。
+- VoiceOver 分别为 `Remaining: 15 minutes`、`剩余 15 分钟`、`剩餘 15 分鐘`，1 minute/1 second 使用英文单数。
+- unlimited/expired、播放/暂停、关闭、重试、切换声音与 action sheet 选项三语正确；繁體中文精确使用 `不限時`、`倒數計時已結束`、`繼續播放`、`暫停播放`、`關閉播放頁`、`重試播放`、`切換聲音`。
+- 320×568 和 390×844 最大辅助字号下英文、简体中文与繁體中文关键按钮不相交，超高内容可通过现有滚动容器访问。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -754,18 +881,21 @@ git commit -m "功能：本地化播放页与倒计时"
 - Modify: `IsleWhispers/ViewControllers/HelpFeedbackViewController.swift`
 - Modify: `../IsleWhispersTests/SettingsViewControllerTests.swift`
 
-- [ ] **Step 1: 写设置链路双语与小屏 RED 测试**
+- [ ] **Step 1: 写设置链路三语与小屏 RED 测试**
 
 新增：
 
 ```swift
 func testSettingsAboutAndHelpUseEnglishBundle() throws
-func testSettingsAboutAndHelpUseChineseBundle() throws
+func testSettingsAboutAndHelpUseSimplifiedChineseBundle() throws
+func testSettingsAboutAndHelpUseTraditionalChineseBundle() throws
 func testEnglishMailSubjectAndFallbackAlertsAreLocalized() throws
+func testTraditionalChineseMailSubjectAndFallbackAlertsAreLocalized() throws
 func testEnglishSettingsPagesRemainScrollableAt320By568WithAccessibilityText() throws
+func testTraditionalChineseSettingsPagesRemainScrollableAt320By568WithAccessibilityText() throws
 ```
 
-断言设置两行、About version/privacy/terms、四个 FAQ、联系按钮、mail subject、无邮件 App、空 H5 链接和复制成功提示。邮箱地址、URL 与 accessibility identifier 必须与改动前一致。小屏测试沿用当前 scroll view 检查，不要求所有长文一次显示在 viewport 中，只要求可滚动访问且按钮标题不被裁掉。
+断言三语设置两行、About version/privacy/terms、四个 FAQ、联系按钮、mail subject、无邮件 App、空 H5 链接和复制成功提示。繁體中文需精确断言 `設定`、`關於 IsleWhispers`、`說明與意見回饋`、`IsleWhispers 說明與意見回饋`、`找不到郵件 App，已複製電子郵件地址。`。邮箱地址、URL 与 accessibility identifier 必须与改动前一致。小屏测试沿用当前 scroll view 检查，不要求所有长文一次显示在 viewport 中，只要求可滚动访问且按钮标题不被裁掉。
 
 - [ ] **Step 2: 运行 RED**
 
@@ -861,9 +991,9 @@ git diff --check
 
 Expected: 全量测试和 build 成功；生产 Swift 中文扫描无输出；`AppleLanguages` 无输出；`git diff --check` 无输出。YYText 上游 warning 可存在，但不得出现新项目 warning/error。
 
-- [ ] **Step 5: 做英文/中文运行时截图检查**
+- [ ] **Step 5: 做英文、简体中文、繁體中文运行时截图检查**
 
-使用同一已构建 App，通过 Simulator 的“Settings → IsleWhispers → Preferred Language”或两个独立模拟器分别选择 English 与简体中文；不要用 launch argument/UserDefaults 覆盖语言。每种语言至少检查并截图：
+使用同一已构建 App，通过 Simulator 的“Settings → IsleWhispers → Preferred Language”或独立模拟器分别选择 English、简体中文与繁體中文；不要用 launch argument/UserDefaults 覆盖语言。每种语言至少检查并截图：
 
 1. 首次启动协议弹窗（两个 YYText 链接和按钮）。
 2. 首页与 Tab Bar。
@@ -871,7 +1001,7 @@ Expected: 全量测试和 build 成功；生产 Swift 中文扫描无输出；`A
 4. 独立播放页的倒计时与暂停/关闭状态。
 5. 设置、关于、帮助反馈。
 
-尺寸至少覆盖 320×568 等效小屏与 390×844 常规屏；再以最大辅助字号检查英文 Launch、Library、Focus、Settings 的滚动可达性。把截图绝对路径、设备/系统版本、检查结果与物理设备未验证项写入 verification report；不得把仅编译通过写成运行时已验证。
+尺寸至少覆盖 320×568 等效小屏与 390×844 常规屏；再以最大辅助字号检查英文、简体中文与繁體中文的 Launch、Library、Focus、Settings 滚动可达性。把截图绝对路径、设备/系统版本、检查结果与物理设备未验证项写入 verification report；不得把仅编译通过写成运行时已验证。
 
 - [ ] **Step 6: 检查资源产物和稳定数据**
 
@@ -883,7 +1013,7 @@ find /tmp/islewhispers-localization-derived-data/Build/Products/Debug-iphonesimu
 find /tmp/islewhispers-localization-derived-data/Build/Products/Debug-iphonesimulator/IsleWhispers.app -name '*.caf' | wc -l
 ```
 
-Expected: development region 为 `en`，存在 en/zh-Hans 本地化资源，CAF 仍为 15 个。补充运行/测试证据证明最近播放中的 `audioResource` 与通知 request identifier 未变。
+Expected: development region 为 `en`，存在 en/zh-Hans/zh-Hant 本地化资源，CAF 仍为 15 个。补充运行/测试证据证明最近播放中的 `audioResource` 与通知 request identifier 未变。
 
 - [ ] **Step 7: 提交守卫与验证报告**
 
