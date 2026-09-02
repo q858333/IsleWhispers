@@ -7,12 +7,14 @@ final class HelpFeedbackViewController: UIViewController {
     static let supportEmail = "dengcheez@gmail.com"
 
     private let links: AppSupportLinks
+    private let localizationBundle: Bundle
     private let openURL: (URL) -> Bool
     private let copyEmail: (String) -> Void
     private let unavailableHandler: ((String) -> Void)?
 
     init(
         links: AppSupportLinks = .current,
+        localizationBundle: Bundle = .main,
         openURL: @escaping (URL) -> Bool = { url in
             guard UIApplication.shared.canOpenURL(url) else { return false }
             UIApplication.shared.open(url)
@@ -22,6 +24,7 @@ final class HelpFeedbackViewController: UIViewController {
         unavailableHandler: ((String) -> Void)? = nil
     ) {
         self.links = links
+        self.localizationBundle = localizationBundle
         self.openURL = openURL
         self.copyEmail = copyEmail
         self.unavailableHandler = unavailableHandler
@@ -32,57 +35,65 @@ final class HelpFeedbackViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "帮助与反馈"
+        title = L10n.text("help.title", bundle: localizationBundle)
         view.backgroundColor = AppTheme.background
         buildInterface()
     }
 
     private func buildInterface() {
-        let intro = helpLabel("常见问题", style: .title2, weight: .bold)
+        let intro = helpLabel(
+            L10n.text("help.faq.title", bundle: localizationBundle),
+            style: .title2,
+            weight: .bold
+        )
         let faqStack = UIStackView(arrangedSubviews: [
             faq(
-                title: "如何切换声音？",
-                answer: "在首页左右滑动，或从声音列表选择。",
+                title: L10n.text("help.faq.playback.question", bundle: localizationBundle),
+                answer: L10n.text("help.faq.playback.answer", bundle: localizationBundle),
                 identifier: "help.faq.playback"
             ),
             faq(
-                title: "倒计时如何工作？",
-                answer: "可选择不限时、15、30、60 分钟；暂停时倒计时同步暂停。",
+                title: L10n.text("help.faq.timer.question", bundle: localizationBundle),
+                answer: L10n.text("help.faq.timer.answer", bundle: localizationBundle),
                 identifier: "help.faq.timer"
             ),
             faq(
-                title: "如何后台播放？",
-                answer: "开始播放后可切到后台，也可在控制中心暂停或继续。",
+                title: L10n.text("help.faq.background.question", bundle: localizationBundle),
+                answer: L10n.text("help.faq.background.answer", bundle: localizationBundle),
                 identifier: "help.faq.background"
             ),
             faq(
-                title: "为什么没有通知？",
-                answer: "请在系统设置中允许 IsleWhispers 发送通知。",
+                title: L10n.text("help.faq.notifications.question", bundle: localizationBundle),
+                answer: L10n.text("help.faq.notifications.answer", bundle: localizationBundle),
                 identifier: "help.faq.notifications"
             )
         ])
         faqStack.axis = .vertical
         faqStack.spacing = 12
 
-        let contactTitle = helpLabel("联系支持", style: .title2, weight: .bold)
+        let contactTitle = helpLabel(
+            L10n.text("help.contact.title", bundle: localizationBundle),
+            style: .title2,
+            weight: .bold
+        )
         let emailLabel = helpLabel(Self.supportEmail, style: .body, color: .secondaryLabel)
         emailLabel.accessibilityIdentifier = "help.email"
         emailLabel.textAlignment = .center
 
         let sendButton = actionButton(
-            title: "发送邮件",
+            title: L10n.text("help.action.email", bundle: localizationBundle),
             symbol: "envelope.fill",
             identifier: "help.sendEmail",
             action: #selector(didTapSendEmail)
         )
         let copyButton = actionButton(
-            title: "复制邮箱",
+            title: L10n.text("help.action.copy_email", bundle: localizationBundle),
             symbol: "doc.on.doc.fill",
             identifier: "help.copyEmail",
             action: #selector(didTapCopyEmail)
         )
         let websiteButton = actionButton(
-            title: "在线帮助",
+            title: L10n.text("help.action.website", bundle: localizationBundle),
             symbol: "safari.fill",
             identifier: "help.supportWebsite",
             action: #selector(didTapSupportWebsite)
@@ -139,10 +150,13 @@ final class HelpFeedbackViewController: UIViewController {
         configuration.baseBackgroundColor = AppTheme.surface
         configuration.baseForegroundColor = AppTheme.accentForeground
         configuration.cornerStyle = .large
+        configuration.titleLineBreakMode = .byWordWrapping
         let button = UIButton(configuration: configuration)
         button.accessibilityIdentifier = identifier
+        button.accessibilityLabel = title
         button.titleLabel?.font = AppTheme.font(.headline, weight: .semibold)
         button.titleLabel?.adjustsFontForContentSizeCategory = true
+        button.titleLabel?.numberOfLines = 0
         button.addTarget(self, action: action, for: .touchUpInside)
         button.snp.makeConstraints { $0.height.greaterThanOrEqualTo(54) }
         return button
@@ -152,23 +166,40 @@ final class HelpFeedbackViewController: UIViewController {
         var components = URLComponents()
         components.scheme = "mailto"
         components.path = Self.supportEmail
-        components.queryItems = [URLQueryItem(name: "subject", value: "IsleWhispers 帮助与反馈")]
+        components.queryItems = [
+            URLQueryItem(
+                name: "subject",
+                value: L10n.text("help.email.subject", bundle: localizationBundle)
+            )
+        ]
         guard let url = components.url, openURL(url) else {
-            copyAndConfirm(message: "未找到邮件应用，邮箱地址已复制。")
+            copyAndConfirm(
+                message: L10n.text("help.email.no_app", bundle: localizationBundle)
+            )
             return
         }
     }
 
     @objc private func didTapCopyEmail() {
-        copyAndConfirm(message: "邮箱地址已复制。")
+        copyAndConfirm(
+            message: L10n.text("help.email.copied", bundle: localizationBundle)
+        )
     }
 
     @objc private func didTapSupportWebsite() {
         guard let url = links.supportURL else {
             if let unavailableHandler {
-                unavailableHandler("在线帮助")
+                unavailableHandler(
+                    L10n.text("help.action.website", bundle: localizationBundle)
+                )
             } else {
-                showAlert(title: "内容准备中", message: "在线帮助将在正式发布前补充。")
+                showAlert(
+                    title: L10n.text(
+                        "common.content_unavailable.title",
+                        bundle: localizationBundle
+                    ),
+                    message: L10n.text("help.website.unavailable", bundle: localizationBundle)
+                )
             }
             return
         }
@@ -177,13 +208,21 @@ final class HelpFeedbackViewController: UIViewController {
 
     private func copyAndConfirm(message: String) {
         copyEmail(Self.supportEmail)
-        showAlert(title: "邮箱已复制", message: message)
+        showAlert(
+            title: L10n.text("help.email.copied.title", bundle: localizationBundle),
+            message: message
+        )
     }
 
     private func showAlert(title: String, message: String) {
         guard unavailableHandler == nil else { return }
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "知道了", style: .default))
+        alert.addAction(
+            UIAlertAction(
+                title: L10n.text("common.ok", bundle: localizationBundle),
+                style: .default
+            )
+        )
         present(alert, animated: true)
     }
 }

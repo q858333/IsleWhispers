@@ -7,6 +7,7 @@ final class AboutViewController: UIViewController {
     private let links: AppSupportLinks
     private let appName: String
     private let version: String
+    private let localizationBundle: Bundle
     private let unavailableHandler: ((String) -> Void)?
 
     init(
@@ -16,11 +17,13 @@ final class AboutViewController: UIViewController {
             ?? "IsleWhispers",
         version: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             ?? "—",
+        localizationBundle: Bundle = .main,
         unavailableHandler: ((String) -> Void)? = nil
     ) {
         self.links = links
         self.appName = appName
         self.version = version
+        self.localizationBundle = localizationBundle
         self.unavailableHandler = unavailableHandler
         super.init(nibName: nil, bundle: nil)
     }
@@ -29,7 +32,7 @@ final class AboutViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "关于 IsleWhispers"
+        title = L10n.text("about.title", bundle: localizationBundle)
         view.backgroundColor = AppTheme.background
         buildInterface()
     }
@@ -46,12 +49,16 @@ final class AboutViewController: UIViewController {
         nameLabel.accessibilityIdentifier = "about.name"
         nameLabel.textAlignment = .center
         let introLabel = aboutLabel(
-            "专注、放松与睡眠的环境声音播放器",
+            L10n.text("about.tagline", bundle: localizationBundle),
             style: .body,
             color: .secondaryLabel
         )
         introLabel.textAlignment = .center
-        let versionLabel = aboutLabel("版本 \(version)", style: .footnote, color: .secondaryLabel)
+        let versionLabel = aboutLabel(
+            L10n.format("about.version.format", bundle: localizationBundle, version),
+            style: .footnote,
+            color: .secondaryLabel
+        )
         versionLabel.accessibilityIdentifier = "about.version"
         versionLabel.textAlignment = .center
 
@@ -61,7 +68,7 @@ final class AboutViewController: UIViewController {
         identity.spacing = 10
 
         let privacyText = aboutLabel(
-            "声音选择、最近播放和计时偏好仅保存在本机。应用不会上传音频、建立用户账户或用于跟踪。",
+            L10n.text("about.local_privacy", bundle: localizationBundle),
             style: .subheadline,
             color: .secondaryLabel
         )
@@ -73,13 +80,13 @@ final class AboutViewController: UIViewController {
         privacyText.snp.makeConstraints { $0.edges.equalToSuperview().inset(18) }
 
         let privacyRow = linkRow(
-            title: "隐私政策",
+            title: L10n.text("about.privacy", bundle: localizationBundle),
             symbol: "hand.raised.fill",
             identifier: "about.privacy",
             action: #selector(didTapPrivacy)
         )
         let termsRow = linkRow(
-            title: "使用条款",
+            title: L10n.text("about.terms", bundle: localizationBundle),
             symbol: "doc.text.fill",
             identifier: "about.terms",
             action: #selector(didTapTerms)
@@ -139,11 +146,17 @@ final class AboutViewController: UIViewController {
     }
 
     @objc private func didTapPrivacy() {
-        open(links.privacyPolicyURL, title: "隐私政策")
+        open(
+            links.privacyPolicyURL,
+            title: L10n.text("about.privacy", bundle: localizationBundle)
+        )
     }
 
     @objc private func didTapTerms() {
-        open(links.termsOfUseURL, title: "使用条款")
+        open(
+            links.termsOfUseURL,
+            title: L10n.text("about.terms", bundle: localizationBundle)
+        )
     }
 
     private func open(_ url: URL?, title: String) {
@@ -152,11 +165,23 @@ final class AboutViewController: UIViewController {
                 unavailableHandler(title)
             } else {
                 let alert = UIAlertController(
-                    title: "内容准备中",
-                    message: "\(title)将在正式发布前补充。",
+                    title: L10n.text(
+                        "common.content_unavailable.title",
+                        bundle: localizationBundle
+                    ),
+                    message: L10n.format(
+                        "common.content_unavailable.message.format",
+                        bundle: localizationBundle,
+                        title
+                    ),
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "知道了", style: .default))
+                alert.addAction(
+                    UIAlertAction(
+                        title: L10n.text("common.ok", bundle: localizationBundle),
+                        style: .default
+                    )
+                )
                 present(alert, animated: true)
             }
             return

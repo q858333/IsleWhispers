@@ -4,10 +4,18 @@ import UIKit
 @MainActor
 final class SettingsViewController: UIViewController {
     private let gradientLayer = CAGradientLayer()
+    private let localizationBundle: Bundle
+
+    init(localizationBundle: Bundle = .main) {
+        self.localizationBundle = localizationBundle
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "设置"
+        title = L10n.text("settings.title", bundle: localizationBundle)
         view.backgroundColor = AppTheme.background
         configureBackground()
         buildInterface()
@@ -31,23 +39,27 @@ final class SettingsViewController: UIViewController {
     }
 
     private func buildInterface() {
-        let titleLabel = makeLabel("设置", style: .largeTitle, weight: .bold)
+        let titleLabel = makeLabel(
+            L10n.text("settings.title", bundle: localizationBundle),
+            style: .largeTitle,
+            weight: .bold
+        )
         let subtitleLabel = makeLabel(
-            "了解应用信息，获取帮助与联系支持",
+            L10n.text("settings.subtitle", bundle: localizationBundle),
             style: .body,
             color: .secondaryLabel
         )
 
         let aboutRow = makeRow(
-            title: "关于 IsleWhispers",
-            detail: "版本、隐私政策与使用条款",
+            title: L10n.text("settings.about.title", bundle: localizationBundle),
+            detail: L10n.text("settings.about.detail", bundle: localizationBundle),
             symbolName: "info.circle.fill",
             identifier: "settings.about"
         )
         aboutRow.addTarget(self, action: #selector(didTapAbout), for: .touchUpInside)
         let helpRow = makeRow(
-            title: "帮助与反馈",
-            detail: "常见问题与联系邮箱",
+            title: L10n.text("settings.help.title", bundle: localizationBundle),
+            detail: L10n.text("settings.help.detail", bundle: localizationBundle),
             symbolName: "questionmark.bubble.fill",
             identifier: "settings.help"
         )
@@ -146,13 +158,19 @@ final class SettingsViewController: UIViewController {
         guard navigationController?.viewControllers.contains(where: { $0 is AboutViewController }) == false else {
             return
         }
-        navigationController?.pushViewController(AboutViewController(), animated: false)
+        navigationController?.pushViewController(
+            AboutViewController(localizationBundle: localizationBundle),
+            animated: false
+        )
     }
 
     @objc private func didTapHelp() {
         guard navigationController?.viewControllers.contains(where: { $0 is HelpFeedbackViewController }) == false else {
             return
         }
-        navigationController?.pushViewController(HelpFeedbackViewController(), animated: false)
+        navigationController?.pushViewController(
+            HelpFeedbackViewController(localizationBundle: localizationBundle),
+            animated: false
+        )
     }
 }
