@@ -1,6 +1,7 @@
 import UIKit
 import XCTest
 import YYText
+import SafariServices
 @testable import IsleWhispers
 
 @MainActor
@@ -378,6 +379,54 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         }
     }
 
+    func testAgreementHighlightAndVoiceOverActionsUseCorrectDocumentURLs() throws {
+        let termsURL = URL(string: "https://example.com/terms")!
+        let privacyURL = URL(string: "https://example.com/privacy")!
+
+        for entry in AgreementDocumentEntry.allCases {
+            try assertAgreementAction(
+                entry: entry,
+                document: .terms,
+                links: AppSupportLinks(
+                    privacyPolicyURL: nil,
+                    termsOfUseURL: termsURL,
+                    supportURL: nil
+                ),
+                expectsSafari: true
+            )
+            try assertAgreementAction(
+                entry: entry,
+                document: .privacy,
+                links: AppSupportLinks(
+                    privacyPolicyURL: nil,
+                    termsOfUseURL: termsURL,
+                    supportURL: nil
+                ),
+                expectsSafari: false
+            )
+            try assertAgreementAction(
+                entry: entry,
+                document: .terms,
+                links: AppSupportLinks(
+                    privacyPolicyURL: privacyURL,
+                    termsOfUseURL: nil,
+                    supportURL: nil
+                ),
+                expectsSafari: false
+            )
+            try assertAgreementAction(
+                entry: entry,
+                document: .privacy,
+                links: AppSupportLinks(
+                    privacyPolicyURL: privacyURL,
+                    termsOfUseURL: nil,
+                    supportURL: nil
+                ),
+                expectsSafari: true
+            )
+        }
+    }
+
     func testAgreementVoiceOverActionsOpenBothDocuments() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -470,4 +519,79 @@ private func scrollView(in root: UIView) -> UIScrollView? {
         return scrollView
     }
     return root.subviews.lazy.compactMap { scrollView(in: $0) }.first
+}
+
+private enum AgreementDocument {
+    case terms
+    case privacy
+
+    var localizationKey: String {
+        switch self {
+        case .terms: "launch.agreement.terms"
+        case .privacy: "launch.agreement.privacy"
+        }
+    }
+
+    var actionLocalizationKey: String {
+        switch self {
+        case .terms: "launch.agreement.open_terms"
+        case .privacy: "launch.agreement.open_privacy"
+        }
+    }
+}
+
+private enum AgreementDocumentEntry: CaseIterable {
+    case highlight
+    case voiceOver
+}
+
+@MainActor
+private func assertAgreementAction(
+    entry: AgreementDocumentEntry,
+    document: AgreementDocument,
+    links: AppSupportLinks,
+    expectsSafari: Bool
+) throws {
+    let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    var unavailableTitles: [String] = []
+    let launch = LaunchViewController(
+        agreementDefaults: defaults,
+        links: links,
+        scheduleRoute: { _ in },
+        unavailableHandler: { unavailableTitles.append($0) },
+        onContinue: {}
+    )
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    window.rootViewController = launch
+    window.makeKeyAndVisible()
+    defer { window.isHidden = true }
+    launch.loadViewIfNeeded()
+
+    let copy = try XCTUnwrap(view("launch.agreement.copy", in: launch.view) as? YYLabel)
+    switch entry {
+    case .highlight:
+        let attributedText = try XCTUnwrap(copy.attributedText)
+        let title = L10n.text(document.localizationKey)
+        let range = (attributedText.string as NSString).range(of: title)
+        let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
+        let highlight = try XCTUnwrap(
+            attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil)
+                as? YYTextHighlight
+        )
+        highlight.tapAction?(copy, attributedText, range, .zero)
+    case .voiceOver:
+        let actionName = L10n.text(document.actionLocalizationKey)
+        let action = try XCTUnwrap(
+            copy.accessibilityCustomActions?.first(where: { $0.name == actionName })
+        )
+        XCTAssertEqual(action.actionHandler?(action), true)
+    }
+
+    XCTAssertEqual(launch.presentedViewController is SFSafariViewController, expectsSafari)
+    XCTAssertEqual(
+        unavailableTitles,
+        expectsSafari ? [] : [L10n.text(document.localizationKey)]
+    )
 }
