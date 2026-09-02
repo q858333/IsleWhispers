@@ -155,6 +155,34 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testCountdownUsesLocalizedMinutesAndSecondsAtFourteenFiftyNine() throws {
+        let cases = [
+            ("en", "Remaining: 14 min 59 sec"),
+            ("zh-Hans", "剩余 14 分 59 秒"),
+            ("zh-Hant", "剩餘 14 分 59 秒")
+        ]
+
+        for (language, accessibilityValue) in cases {
+            let context = makeFocusContext(
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            defer { context.cleanup() }
+            context.service.play()
+            context.service.setSleepTimer(.minutes15)
+            context.controller.loadViewIfNeeded()
+            let countdownButton = try XCTUnwrap(
+                findView(identifier: "focusCountdown", in: context.controller.view) as? UIButton
+            )
+
+            context.advanceNow(by: 1)
+            context.controller.refreshForTesting()
+
+            XCTAssertEqual(countdownButton.currentTitle, "14:59", language)
+            XCTAssertEqual(countdownButton.accessibilityValue, accessibilityValue, language)
+        }
+    }
+
+    @MainActor
     func testTimerSheetAndPlaybackActionsUseInjectedLanguageBundle() throws {
         let cases = [
             FocusLocalizationExpectation(
@@ -503,16 +531,46 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testEnglishFocusControlsFitAt320By568AndMaximumAccessibilityText() throws {
-        try assertFocusLayout(language: "en", size: CGSize(width: 320, height: 568))
+    func testAllLanguagesLongestSoundTitleFitsAt320By568WithAXXXL() throws {
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            try assertFocusLayout(
+                language: language,
+                size: CGSize(width: 320, height: 568),
+                scenario: .longestSoundTitle
+            )
+        }
     }
 
     @MainActor
-    func testAllLanguagesFocusControlsFitAt390By844AndMaximumAccessibilityText() throws {
+    func testAllLanguagesErrorControlsFitAndRemainReachableAt320By568WithAXXXL() throws {
         for language in ["en", "zh-Hans", "zh-Hant"] {
-            for size in [CGSize(width: 320, height: 568), CGSize(width: 390, height: 844)] {
-                try assertFocusLayout(language: language, size: size)
-            }
+            try assertFocusLayout(
+                language: language,
+                size: CGSize(width: 320, height: 568),
+                scenario: .resourceError
+            )
+        }
+    }
+
+    @MainActor
+    func testAllLanguagesLongestSoundTitleFitsAt390By844WithAXXXL() throws {
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            try assertFocusLayout(
+                language: language,
+                size: CGSize(width: 390, height: 844),
+                scenario: .longestSoundTitle
+            )
+        }
+    }
+
+    @MainActor
+    func testAllLanguagesErrorControlsFitAt390By844WithAXXXL() throws {
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            try assertFocusLayout(
+                language: language,
+                size: CGSize(width: 390, height: 844),
+                scenario: .resourceError
+            )
         }
     }
 
@@ -559,12 +617,25 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    private func assertFocusLayout(language: String, size: CGSize) throws {
+    private func assertFocusLayout(
+        language: String,
+        size: CGSize,
+        scenario: FocusLayoutScenario,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
         let context = makeFocusContext(
-            resourceBundle: Bundle(for: FocusPlaybackViewControllerTests.self),
+            resourceBundle: scenario == .resourceError
+                ? Bundle(for: FocusPlaybackViewControllerTests.self)
+                : .main,
             localizationBundle: try LocalizationTestSupport.bundle(language)
         )
         defer { context.cleanup() }
+        if scenario == .longestSoundTitle {
+            context.service.selectSound(at: 4)
+        } else {
+            context.service.play()
+        }
         let host = UIViewController()
         host.loadViewIfNeeded()
         host.addChild(context.controller)
@@ -583,6 +654,12 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         )
         layout(host, size: size)
 
+        XCTAssertEqual(
+            context.controller.traitCollection.preferredContentSizeCategory,
+            .accessibilityExtraExtraExtraLarge,
+            file: file,
+            line: line
+        )
         let identifiers = [
             "focusSoundTitle",
             "focusSoundPicker",
@@ -593,10 +670,67 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             "focusClose"
         ]
         let scrollView = try XCTUnwrap(
-            findSubview(UIScrollView.self, in: context.controller.view)
+            findSubview(UIScrollView.self, in: context.controller.view),
+            file: file,
+            line: line
         )
+        let titleLabel = try XCTUnwrap(
+            findLabel(identifier: "focusSoundTitle", in: context.controller.view),
+            file: file,
+            line: line
+        )
+        if scenario == .longestSoundTitle {
+            let expectedTitles = [
+                "en": "Flowing Water",
+                "zh-Hans": "水流",
+                "zh-Hant": "流水"
+            ]
+            XCTAssertEqual(titleLabel.text, expectedTitles[language], file: file, line: line)
+        }
+        assertLabelFits(titleLabel, language: language, size: size, file: file, line: line)
+
+        let countdown = try XCTUnwrap(
+            findView(identifier: "focusCountdown", in: context.controller.view) as? UIButton,
+            file: file,
+            line: line
+        )
+        try assertButtonTitleFits(
+            countdown,
+            language: language,
+            size: size,
+            file: file,
+            line: line
+        )
+
+        if scenario == .resourceError {
+            let status = try XCTUnwrap(
+                findLabel(identifier: "focusStatus", in: context.controller.view),
+                file: file,
+                line: line
+            )
+            let retry = try XCTUnwrap(
+                findView(identifier: "focusRetry", in: context.controller.view) as? UIButton,
+                file: file,
+                line: line
+            )
+            XCTAssertFalse(status.isHidden, file: file, line: line)
+            XCTAssertFalse(retry.isHidden, file: file, line: line)
+            assertLabelFits(status, language: language, size: size, file: file, line: line)
+            try assertButtonTitleFits(
+                retry,
+                language: language,
+                size: size,
+                file: file,
+                line: line
+            )
+        }
+
         let visibleFrames = try identifiers.compactMap { identifier -> CGRect? in
-            let view = try XCTUnwrap(findView(identifier: identifier, in: context.controller.view))
+            let view = try XCTUnwrap(
+                findView(identifier: identifier, in: context.controller.view),
+                file: file,
+                line: line
+            )
             guard !view.isHidden else { return nil }
             return view.convert(view.bounds, to: scrollView)
         }
@@ -605,12 +739,89 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             for otherFrame in visibleFrames.dropFirst(index + 1) {
                 XCTAssertFalse(
                     frame.intersects(otherFrame),
-                    "\(language) controls intersect at \(size): \(frame), \(otherFrame)"
+                    "\(language) \(scenario) controls intersect at \(size): \(frame), \(otherFrame)",
+                    file: file,
+                    line: line
                 )
             }
         }
         XCTAssertTrue(scrollView.alwaysBounceVertical)
-        XCTAssertGreaterThanOrEqual(scrollView.contentSize.height, scrollView.bounds.height)
+        XCTAssertGreaterThanOrEqual(
+            scrollView.contentSize.height,
+            scrollView.bounds.height,
+            file: file,
+            line: line
+        )
+
+        if scrollView.contentSize.height > scrollView.bounds.height + 0.5 {
+            XCTAssertGreaterThan(
+                scrollView.contentSize.height,
+                scrollView.bounds.height,
+                file: file,
+                line: line
+            )
+            scrollView.contentOffset = CGPoint(
+                x: 0,
+                y: scrollView.contentSize.height - scrollView.bounds.height
+            )
+            scrollView.layoutIfNeeded()
+            let lastControl = try XCTUnwrap(
+                ["focusPrimaryControl", "focusClose"]
+                    .compactMap { findView(identifier: $0, in: context.controller.view) }
+                    .filter { !$0.isHidden }
+                    .max {
+                        $0.convert($0.bounds, to: scrollView).maxY
+                            < $1.convert($1.bounds, to: scrollView).maxY
+                    },
+                file: file,
+                line: line
+            )
+            let lastFrame = lastControl.convert(lastControl.bounds, to: scrollView)
+            XCTAssertLessThanOrEqual(
+                lastFrame.maxY,
+                scrollView.bounds.maxY + 0.5,
+                "\(language) \(scenario) last control is unreachable at \(size)",
+                file: file,
+                line: line
+            )
+        }
+    }
+
+    @MainActor
+    private func assertLabelFits(
+        _ label: UILabel,
+        language: String,
+        size: CGSize,
+        file: StaticString,
+        line: UInt
+    ) {
+        let originalNumberOfLines = label.numberOfLines
+        label.numberOfLines = 0
+        let fittingSize = label.sizeThatFits(
+            CGSize(width: label.bounds.width, height: .greatestFiniteMagnitude)
+        )
+        label.numberOfLines = originalNumberOfLines
+        XCTAssertGreaterThan(label.bounds.width, 0, file: file, line: line)
+        XCTAssertGreaterThan(label.bounds.height, 0, file: file, line: line)
+        XCTAssertLessThanOrEqual(
+            fittingSize.height,
+            label.bounds.height + 0.5,
+            "\(language) label is vertically clipped at \(size): \(label.text ?? "")",
+            file: file,
+            line: line
+        )
+    }
+
+    @MainActor
+    private func assertButtonTitleFits(
+        _ button: UIButton,
+        language: String,
+        size: CGSize,
+        file: StaticString,
+        line: UInt
+    ) throws {
+        let titleLabel = try XCTUnwrap(button.titleLabel, file: file, line: line)
+        assertLabelFits(titleLabel, language: language, size: size, file: file, line: line)
     }
 
     @MainActor
@@ -744,6 +955,18 @@ private struct FocusLocalizationExpectation {
     let sheetTitle: String
     let options: [String]
     let libraryTitle: String
+}
+
+private enum FocusLayoutScenario: CustomStringConvertible {
+    case longestSoundTitle
+    case resourceError
+
+    var description: String {
+        switch self {
+        case .longestSoundTitle: return "longest sound title"
+        case .resourceError: return "resource error"
+        }
+    }
 }
 
 @MainActor
