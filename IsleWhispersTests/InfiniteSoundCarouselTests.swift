@@ -68,8 +68,11 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
-    func testExposesOneLogicalAccessibilityElementInsteadOfDuplicates() {
-        let carousel = makeCarousel(selectedIndex: 2)
+    func testExposesOneLogicalAccessibilityElementInsteadOfDuplicates() throws {
+        let carousel = makeCarousel(
+            selectedIndex: 2,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
 
         XCTAssertTrue(carousel.isAccessibilityElement)
         XCTAssertTrue(carousel.accessibilityTraits.contains(.adjustable))
@@ -78,8 +81,11 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
-    func testProgrammaticSelectionUpdatesAndSettlesOnlyOnce() {
-        let carousel = makeCarousel(selectedIndex: 2)
+    func testProgrammaticSelectionUpdatesAndSettlesOnlyOnce() throws {
+        let carousel = makeCarousel(
+            selectedIndex: 2,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         var settled: [Int] = []
         carousel.onSettled = { settled.append($0) }
 
@@ -93,8 +99,12 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
-    func testAnimatedSelectionWithoutUsableLayoutSettlesSynchronously() {
-        let carousel = InfiniteSoundCarousel(sounds: Sound.catalog, selectedIndex: 2)
+    func testAnimatedSelectionWithoutUsableLayoutSettlesSynchronously() throws {
+        let carousel = InfiniteSoundCarousel(
+            sounds: Sound.catalog,
+            selectedIndex: 2,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         var settled: [Int] = []
         carousel.onSettled = { settled.append($0) }
 
@@ -106,8 +116,11 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
-    func testAccessibilityScrollsLogicallyAcrossCatalogBoundary() {
-        let carousel = makeCarousel(selectedIndex: 14)
+    func testAccessibilityScrollsLogicallyAcrossCatalogBoundary() throws {
+        let carousel = makeCarousel(
+            selectedIndex: 14,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         var settled: [Int] = []
         carousel.onSettled = { settled.append($0) }
 

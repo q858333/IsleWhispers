@@ -125,7 +125,9 @@ final class HomeViewControllerTests: XCTestCase {
 
     @MainActor
     func testInitialPlayRecordsSelectedSoundAndPresentsFullScreenFocusPage() throws {
-        let context = makeHomeContext()
+        let context = makeHomeContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
         window.rootViewController = context.controller
@@ -148,7 +150,9 @@ final class HomeViewControllerTests: XCTestCase {
 
     @MainActor
     func testAlreadyPlayingEntryPresentsWithoutRestartingAudio() throws {
-        let context = makeHomeContext()
+        let context = makeHomeContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         context.service.play()
         var stateNotificationCount = 0
@@ -182,7 +186,8 @@ final class HomeViewControllerTests: XCTestCase {
     @MainActor
     func testInitialPlaybackFailureStillPresentsRecoverableFocusPage() throws {
         let context = makeHomeContext(
-            resourceBundle: Bundle(for: HomeViewControllerTests.self)
+            resourceBundle: Bundle(for: HomeViewControllerTests.self),
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
         )
         defer { context.cleanup() }
         let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
@@ -248,7 +253,9 @@ final class HomeViewControllerTests: XCTestCase {
 
     @MainActor
     func testMuteButtonDoesNotPausePlayback() throws {
-        let context = makeHomeContext()
+        let context = makeHomeContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         context.service.play()
         context.controller.loadViewIfNeeded()
@@ -325,7 +332,9 @@ final class HomeViewControllerTests: XCTestCase {
 
     @MainActor
     func testRecentSelectionAutoplaysRecordsDismissesAndPositionsCarousel() throws {
-        let context = makeHomeContext()
+        let context = makeHomeContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         context.store.record(Sound.catalog[9])
 
@@ -365,7 +374,9 @@ final class HomeViewControllerTests: XCTestCase {
 
     @MainActor
     func testSleepTimerControlUpdatesPlayerService() throws {
-        let context = makeHomeContext()
+        let context = makeHomeContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
         let timerButton = try XCTUnwrap(

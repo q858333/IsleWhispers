@@ -93,10 +93,11 @@ final class RecentSoundsViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testEmptyRecentsShowsAccessibleEmptyState() {
+    func testEmptyRecentsShowsAccessibleEmptyState() throws {
         let controller = RecentSoundsViewController(
             sounds: [],
-            selectedSoundID: Sound.catalog[2].id
+            selectedSoundID: Sound.catalog[2].id,
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
         )
         controller.loadViewIfNeeded()
 

@@ -47,8 +47,10 @@ final class RootTabBarControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testRootContainsHomeSoundAndSettingsTabs() {
-        let context = makeRootContext()
+    func testRootContainsHomeSoundAndSettingsTabs() throws {
+        let context = makeRootContext(
+            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
+        )
         defer { context.cleanup() }
         context.controller.loadViewIfNeeded()
 
