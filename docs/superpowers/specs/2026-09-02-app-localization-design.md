@@ -49,6 +49,8 @@ Key 使用稳定、语义化的命名，不直接使用英文句子作为 key：
 - 传入格式参数。
 - 为测试注入指定语言 Bundle，而生产默认使用 `.main`。
 
+测试/预览 helper 将 `zh-TW`、`zh-HK` 以及所有以 `zh-Hant-` 开头的语言 tag canonicalize 为 `zh-Hant` 后再解析 `.lproj`；它不参与生产语言选择。生产调用只使用 `.main`，仍由 iOS Bundle 自动匹配系统或 App Preferred Language。
+
 访问层只封装本地化，不管理用户偏好，也不缓存当前语言。iOS 负责语言选择；应用随系统或单独 App 语言变更后按系统生命周期重新加载。
 
 ### 3. 声音与分类元数据
@@ -94,7 +96,7 @@ VoiceOver 的 label、hint、value 和 custom action 与可见文本使用同一
 
 ## 数据与生命周期
 
-应用不保存语言设置。启动时 Bundle 根据 iOS 当前语言解析资源：
+应用不保存语言设置。生产环境启动时 `.main` Bundle 根据 iOS 当前语言自动解析资源：
 
 1. 简体中文匹配 `zh-Hans`。
 2. 繁體中文（包括系统解析为 `zh-Hant` 的繁中地区）匹配 `zh-Hant`，不拆分 `zh-TW`/`zh-HK`。
@@ -107,9 +109,10 @@ VoiceOver 的 label、hint、value 和 custom action 与可见文本使用同一
 
 ### Catalog 测试
 
-- 英文、简体中文与繁體中文包含相同的必需 key。
-- 每个 key 都有非空英文值、非空简体中文值和非空繁體中文值。
+- Catalog 恰好包含 129 个 key：94 个非声音 key、3 个声音分类 key、30 个声音 title/subtitle key、2 个复数 key。
+- 英文、简体中文与繁體中文的 key 集合均严格等于同一份 129-key manifest；每个 key 都有非空英文值、非空简体中文值和非空繁體中文值。
 - 不支持的 Locale 回退英文。
+- 测试/预览 helper 对 `zh-TW`、`zh-HK`、`zh-Hant-TW`、`zh-Hant-HK` 都解析 `zh-Hant.lproj`；生产 `.main` Bundle 仍由系统自动选择。
 - 格式化倒计时、计数和版本信息在三种语言下符合预期。
 
 ### 模型与服务测试

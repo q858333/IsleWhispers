@@ -53,8 +53,8 @@ enum LocalizationTestSupport {
 
 ```swift
 final class LocalizationTests: XCTestCase {
-func testEnglishIsDevelopmentLanguageAndBothChineseLocalesArePackaged() throws
-func testAllThreeLocalesHaveIdenticalNonemptyKeys() throws
+    func testEnglishIsDevelopmentLanguageAndBothChineseLocalesArePackaged() throws
+    func testCatalogContainsExactly129NonemptyKeysInAllThreeLocales() throws
     func testUnsupportedLanguageResolutionFallsBackToEnglish() throws
     func testFormattingUsesInjectedBundleAndLocale() throws
 }
@@ -64,8 +64,9 @@ func testAllThreeLocalesHaveIdenticalNonemptyKeys() throws
 
 - `Bundle.main.object(forInfoDictionaryKey: "CFBundleDevelopmentRegion") as? String == "en"`。
 - `en.lproj`、`zh-Hans.lproj` 和 `zh-Hant.lproj` 均能从 App Bundle 解析。
-- 读取源码 `Localizable.xcstrings` 后，三种语言的 key 集合完全一致且值非空。
-- `L10n.bundle(for: "fr", in: .main)` 返回英文 lproj；`zh-Hans` 返回简体中文 Bundle，`zh-Hant` 返回繁體中文 Bundle。
+- 读取源码 `Localizable.xcstrings` 后，三种语言的 key 集合均严格等于 Task 1 的 129 个 key manifest，且每个 key 的对应值非空。
+- 测试内定义 `expectedCatalogKeyCount = 129` 并断言 `requiredCatalogKeys.count == expectedCatalogKeyCount`；随后分别断言 `en`、`zh-Hans`、`zh-Hant` 的 key 集合等于 `requiredCatalogKeys`，而不是只比较三种语言彼此相等。
+- `L10n.bundle(for: "fr", in: .main)` 返回英文 lproj；`zh-Hans` 返回简体中文 Bundle，`zh-Hant`、`zh-TW`、`zh-HK`、`zh-Hant-TW`、`zh-Hant-HK` 均返回繁體中文 Bundle。
 - 英文 `about.version.format` 格式化为 `Version 1.2.3`，简体中文为 `版本 1.2.3`，繁體中文为 `版本 1.2.3`。
 - 英文 `timer.duration.minutes` 在 1/2 时分别为 `1 minute`/`2 minutes`；简体中文为 `1 分钟`/`2 分钟`；繁體中文为 `1 分鐘`/`2 分鐘`。
 
@@ -109,19 +110,61 @@ enum L10n {
         String.localizedStringWithFormat(text(key, bundle: bundle), count)
     }
 
+    static func canonicalLanguage(_ language: String) -> String {
+        let components = language
+            .replacingOccurrences(of: "_", with: "-")
+            .split(separator: "-", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard components.first?.lowercased() == "zh", components.count >= 2 else {
+            return language
+        }
+        let scriptOrRegion = components[1]
+        if scriptOrRegion.caseInsensitiveCompare("Hant") == .orderedSame
+            || ["TW", "HK"].contains(scriptOrRegion.uppercased()) {
+            return "zh-Hant"
+        }
+        return language
+    }
+
     static func bundle(for language: String, in appBundle: Bundle = .main) -> Bundle {
-        let path = appBundle.path(forResource: language, ofType: "lproj")
+        let resolvedLanguage = canonicalLanguage(language)
+        let path = appBundle.path(forResource: resolvedLanguage, ofType: "lproj")
             ?? appBundle.path(forResource: "en", ofType: "lproj")
         return path.flatMap(Bundle.init(path:)) ?? appBundle
     }
 }
 ```
 
-生产调用仅使用默认 `.main`；`bundle(for:in:)` 仅提供确定性的预览和测试注入，不参与 App 语言偏好管理。
+生产调用仅使用默认 `.main`，由 iOS Bundle 自动解析系统或 App Preferred Language；`canonicalLanguage(_:)` 与 `bundle(for:in:)` 仅提供确定性的预览和测试注入，不参与生产语言偏好管理。测试要精确断言 `L10n.canonicalLanguage("zh-TW") == "zh-Hant"`、`L10n.canonicalLanguage("zh-HK") == "zh-Hant"`、`L10n.canonicalLanguage("zh-Hant-TW") == "zh-Hant"`、`L10n.canonicalLanguage("zh_Hant_HK") == "zh-Hant"`，并断言以上四个输入经 `bundle(for:in:)` 得到的 `bundleURL.lastPathComponent == "zh-Hant.lproj"`。
 
-- [ ] **Step 4: 建立完整 key 清单和翻译**
+- [ ] **Step 4: 建立 129 个 key 的可计数 manifest 和翻译**
 
-`Localizable.xcstrings` 设置 `sourceLanguage: "en"`，为以下 key 提供完整 `en` / `zh-Hans` / `zh-Hant`。英文、简体中文与繁體中文值按表执行；格式参数保留在 Catalog 中，调用方不得拼接语序。
+`Localizable.xcstrings` 设置 `sourceLanguage: "en"`，并且必须恰好包含 129 个 key：下表的 94 个非声音 key、3 个声音分类 key、30 个声音 title/subtitle key、2 个复数 key。为每个 key 提供完整 `en` / `zh-Hans` / `zh-Hant` 值；格式参数保留在 Catalog 中，调用方不得拼接语序。
+
+`LocalizationTests` 将下列清单原样定义为 `requiredCatalogKeys`，用它对 Catalog 做精确集合比较和计数断言：
+
+```swift
+private let expectedCatalogKeyCount = 129
+private let requiredCatalogKeys: Set<String> = [
+    "common.ok", "common.cancel", "common.retry", "common.content_unavailable.title", "common.content_unavailable.message.format",
+    "launch.subtitle", "launch.agreement.title", "launch.agreement.body", "launch.agreement.terms", "launch.agreement.privacy", "launch.agreement.accept", "launch.agreement.decline", "launch.agreement.required.title", "launch.agreement.required.message", "launch.agreement.open_terms", "launch.agreement.open_privacy",
+    "tab.home", "tab.sounds", "tab.settings",
+    "home.greeting", "home.action.mute", "home.action.unmute", "home.action.recent", "home.action.open_player", "home.action.play_and_open", "home.mute.on", "home.mute.off", "home.retry.hint",
+    "carousel.label", "carousel.position.format", "sound.accessibility.title_subtitle.format",
+    "recent.title", "recent.list.label", "recent.close", "recent.empty.title", "recent.empty.detail",
+    "library.title", "library.list.label",
+    "focus.sound_picker.label", "focus.sound_picker.current.format", "focus.sound_picker.hint", "focus.countdown.label", "focus.close", "focus.play", "focus.pause", "focus.retry.label", "focus.countdown.unlimited", "focus.countdown.remaining.format", "focus.countdown.ended", "focus.timer.sheet.title",
+    "timer.option.unlimited", "timer.option.short_unlimited", "timer.option.minutes15", "timer.option.minutes30", "timer.option.minutes60", "timer.duration.minutes_seconds.format", "timer.accessibility.option.format", "timer.duration.minutes", "timer.duration.seconds",
+    "player.status.ready", "player.status.session_unavailable", "player.status.playback_failed", "player.status.decode_failed", "player.status.resource_unavailable", "notification.playback_ended.title",
+    "settings.title", "settings.subtitle", "settings.about.title", "settings.about.detail", "settings.help.title", "settings.help.detail",
+    "about.title", "about.tagline", "about.version.format", "about.local_privacy", "about.privacy", "about.terms",
+    "help.title", "help.faq.title", "help.faq.playback.question", "help.faq.playback.answer", "help.faq.timer.question", "help.faq.timer.answer", "help.faq.background.question", "help.faq.background.answer", "help.faq.notifications.question", "help.faq.notifications.answer", "help.contact.title", "help.action.email", "help.action.copy_email", "help.action.website", "help.email.subject", "help.email.no_app", "help.email.copied", "help.email.copied.title", "help.website.unavailable",
+    "sound.category.nature", "sound.category.life", "sound.category.atmosphere",
+    "sound.tea.title", "sound.tea.subtitle", "sound.thunder.title", "sound.thunder.subtitle", "sound.rain.title", "sound.rain.subtitle", "sound.fire.title", "sound.fire.subtitle", "sound.water.title", "sound.water.subtitle", "sound.wind.title", "sound.wind.subtitle", "sound.day.title", "sound.day.subtitle", "sound.night.title", "sound.night.subtitle", "sound.river.title", "sound.river.subtitle", "sound.space.title", "sound.space.subtitle", "sound.yacht.title", "sound.yacht.subtitle", "sound.train.title", "sound.train.subtitle", "sound.farm.title", "sound.farm.subtitle", "sound.chimes.title", "sound.chimes.subtitle", "sound.whale.title", "sound.whale.subtitle"
+]
+```
+
+测试必须依次执行 `XCTAssertEqual(requiredCatalogKeys.count, expectedCatalogKeyCount)`、`XCTAssertEqual(catalogKeys(language), requiredCatalogKeys)` 和逐 key `XCTAssertFalse(catalogValue(key, language: language).isEmpty)`，其中 `language` 依次为 `en`、`zh-Hans`、`zh-Hant`。不得仅比较三种语言彼此的 key 集合。
 
 | Key | English | 简体中文 |
 |---|---|---|
@@ -319,7 +362,7 @@ enum L10n {
 | `help.email.copied.title` | 已複製電子郵件地址 |
 | `help.website.unavailable` | 線上說明將在正式發布前補充。 |
 
-声音 key 完整加入：`sound.category.nature/life/atmosphere`，以及 `tea`、`thunder`、`rain`、`fire`、`water`、`wind`、`day`、`night`、`river`、`space`、`yacht`、`train`、`farm`、`chimes`、`whale` 每个 slug 的 `.title` 与 `.subtitle`。三类中文为 `自然`、`生活`、`氛围`，英文为 `Nature`、`Everyday`、`Atmosphere`。15 组文案精确使用：
+声音元数据是上述 manifest 的 33 个 key：`sound.category.nature`、`sound.category.life`、`sound.category.atmosphere`，以及 15 个明确 slug 的 `.title`/`.subtitle`（共 30 个，完整 key 已逐项列在 manifest）。三类中文为 `自然`、`生活`、`氛围`，英文为 `Nature`、`Everyday`、`Atmosphere`。15 组文案精确使用：
 
 ```text
 tea: Tea — Quiet cups and a gentle tea ritual | 茶香 — 茶与安静器皿
