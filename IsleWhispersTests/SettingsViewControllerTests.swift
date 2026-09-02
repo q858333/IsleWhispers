@@ -164,7 +164,6 @@ final class SettingsViewControllerTests: XCTestCase {
             about: (
                 title: "About IsleWhispers",
                 tagline: "Ambient sounds for focus, relaxation, and sleep",
-                version: "Version 1.0",
                 localPrivacy: "Sound selection, recent history, and timer preferences stay on this device. The app does not upload audio, create user accounts, or track you.",
                 privacy: "Privacy Policy",
                 terms: "Terms of Use"
@@ -204,7 +203,6 @@ final class SettingsViewControllerTests: XCTestCase {
             about: (
                 title: "关于 IsleWhispers",
                 tagline: "专注、放松与睡眠的环境声音播放器",
-                version: "版本 1.0",
                 localPrivacy: "声音选择、最近播放和计时偏好仅保存在本机。应用不会上传音频、建立用户账户或用于跟踪。",
                 privacy: "隐私政策",
                 terms: "使用条款"
@@ -244,7 +242,6 @@ final class SettingsViewControllerTests: XCTestCase {
             about: (
                 title: "關於 IsleWhispers",
                 tagline: "為專注、放鬆與睡眠而設的環境聲音播放器",
-                version: "版本 1.0",
                 localPrivacy: "聲音選擇、最近播放和計時偏好只會保留在這部裝置上。App 不會上傳音訊、建立使用者帳號或追蹤你。",
                 privacy: "隱私權政策",
                 terms: "使用者協議"
@@ -329,7 +326,6 @@ private typealias SettingsCopy = (
 private typealias AboutCopy = (
     title: String,
     tagline: String,
-    version: String,
     localPrivacy: String,
     privacy: String,
     terms: String
@@ -375,8 +371,21 @@ private func assertLocalizedSettingsPages(
     aboutRow.sendActions(for: .touchUpInside)
     let about = try XCTUnwrap(navigation.topViewController as? AboutViewController)
     about.loadViewIfNeeded()
+    let appVersion = Bundle.main.object(
+        forInfoDictionaryKey: "CFBundleShortVersionString"
+    ) as? String ?? "—"
+    let expectedVersion = L10n.format(
+        "about.version.format",
+        bundle: bundle,
+        appVersion
+    )
     XCTAssertEqual(about.title, expectedAbout.title, file: file, line: line)
-    XCTAssertEqual((view("about.version", in: about.view) as? UILabel)?.text, expectedAbout.version, file: file, line: line)
+    XCTAssertEqual(
+        (view("about.version", in: about.view) as? UILabel)?.text,
+        expectedVersion,
+        file: file,
+        line: line
+    )
     XCTAssertEqual((view("about.localPrivacy", in: about.view) as? UILabel)?.text, expectedAbout.localPrivacy, file: file, line: line)
     let aboutLabels = allLabels(in: about.view).compactMap(\.text)
     XCTAssertTrue(aboutLabels.contains(expectedAbout.tagline), file: file, line: line)
@@ -420,6 +429,10 @@ private func assertMailSubjectAndFallbackAlerts(
     file: StaticString = #filePath,
     line: UInt = #line
 ) throws {
+    let animationsWereEnabled = UIView.areAnimationsEnabled
+    UIView.setAnimationsEnabled(false)
+    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
     let noLinks = AppSupportLinks(privacyPolicyURL: nil, termsOfUseURL: nil, supportURL: nil)
     var attemptedMailURL: URL?
     var copiedEmail: String?
@@ -431,42 +444,37 @@ private func assertMailSubjectAndFallbackAlerts(
             copyEmail: { copiedEmail = $0 }
         )
     }
-    func host(_ controller: UIViewController) -> UIWindow {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
-        controller.loadViewIfNeeded()
-        return window
+    let host = try ViewControllerTestHost(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    defer { host.tearDown() }
+
+    try host.withController(makeHelpController()) { noMailHelp in
+        try XCTUnwrap(view("help.sendEmail", in: noMailHelp.view) as? UIControl)
+            .sendActions(for: .touchUpInside)
+        XCTAssertEqual(
+            URLComponents(url: try XCTUnwrap(attemptedMailURL), resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "subject" })?.value,
+            mailSubject,
+            file: file,
+            line: line
+        )
+        XCTAssertEqual(copiedEmail, HelpFeedbackViewController.supportEmail, file: file, line: line)
+        try assertAlert(on: noMailHelp, title: copiedTitle, message: noMailMessage, action: ok, file: file, line: line)
+        try dismissAlert(on: noMailHelp, file: file, line: line)
     }
 
-    let noMailHelp = makeHelpController()
-    let noMailWindow = host(noMailHelp)
-    try XCTUnwrap(view("help.sendEmail", in: noMailHelp.view) as? UIControl)
-        .sendActions(for: .touchUpInside)
-    XCTAssertEqual(
-        URLComponents(url: try XCTUnwrap(attemptedMailURL), resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "subject" })?.value,
-        mailSubject,
-        file: file,
-        line: line
-    )
-    XCTAssertEqual(copiedEmail, HelpFeedbackViewController.supportEmail, file: file, line: line)
-    try assertAlert(on: noMailHelp, title: copiedTitle, message: noMailMessage, action: ok, file: file, line: line)
-    noMailHelp.dismiss(animated: false)
+    try host.withController(makeHelpController()) { copyHelp in
+        try XCTUnwrap(view("help.copyEmail", in: copyHelp.view) as? UIControl)
+            .sendActions(for: .touchUpInside)
+        try assertAlert(on: copyHelp, title: copiedTitle, message: copiedMessage, action: ok, file: file, line: line)
+        try dismissAlert(on: copyHelp, file: file, line: line)
+    }
 
-    let copyHelp = makeHelpController()
-    let copyWindow = host(copyHelp)
-    try XCTUnwrap(view("help.copyEmail", in: copyHelp.view) as? UIControl)
-        .sendActions(for: .touchUpInside)
-    try assertAlert(on: copyHelp, title: copiedTitle, message: copiedMessage, action: ok, file: file, line: line)
-    copyHelp.dismiss(animated: false)
-
-    let websiteHelp = makeHelpController()
-    let websiteWindow = host(websiteHelp)
-    try XCTUnwrap(view("help.supportWebsite", in: websiteHelp.view) as? UIControl)
-        .sendActions(for: .touchUpInside)
-    try assertAlert(on: websiteHelp, title: unavailableTitle, message: websiteMessage, action: ok, file: file, line: line)
-    websiteHelp.dismiss(animated: false)
+    try host.withController(makeHelpController()) { websiteHelp in
+        try XCTUnwrap(view("help.supportWebsite", in: websiteHelp.view) as? UIControl)
+            .sendActions(for: .touchUpInside)
+        try assertAlert(on: websiteHelp, title: unavailableTitle, message: websiteMessage, action: ok, file: file, line: line)
+        try dismissAlert(on: websiteHelp, file: file, line: line)
+    }
 
     let privacyAbout = AboutViewController(
         links: noLinks,
@@ -474,12 +482,13 @@ private func assertMailSubjectAndFallbackAlerts(
         version: "1.2.3",
         localizationBundle: bundle
     )
-    let privacyWindow = host(privacyAbout)
-    try XCTUnwrap(view("about.privacy", in: privacyAbout.view) as? UIControl)
-        .sendActions(for: .touchUpInside)
-    try assertAlert(on: privacyAbout, title: unavailableTitle, message: privacyMessage, action: ok, file: file, line: line)
-    XCTAssertEqual(view("about.privacy", in: privacyAbout.view)?.accessibilityLabel, privacyTitle, file: file, line: line)
-    privacyAbout.dismiss(animated: false)
+    try host.withController(privacyAbout) { privacyAbout in
+        try XCTUnwrap(view("about.privacy", in: privacyAbout.view) as? UIControl)
+            .sendActions(for: .touchUpInside)
+        try assertAlert(on: privacyAbout, title: unavailableTitle, message: privacyMessage, action: ok, file: file, line: line)
+        XCTAssertEqual(view("about.privacy", in: privacyAbout.view)?.accessibilityLabel, privacyTitle, file: file, line: line)
+        try dismissAlert(on: privacyAbout, file: file, line: line)
+    }
 
     let termsAbout = AboutViewController(
         links: noLinks,
@@ -487,15 +496,12 @@ private func assertMailSubjectAndFallbackAlerts(
         version: "1.2.3",
         localizationBundle: bundle
     )
-    let termsWindow = host(termsAbout)
-    try XCTUnwrap(view("about.terms", in: termsAbout.view) as? UIControl)
-        .sendActions(for: .touchUpInside)
-    try assertAlert(on: termsAbout, title: unavailableTitle, message: termsMessage, action: ok, file: file, line: line)
-    XCTAssertEqual(view("about.terms", in: termsAbout.view)?.accessibilityLabel, termsTitle, file: file, line: line)
-    termsAbout.dismiss(animated: false)
-
-    for window in [noMailWindow, copyWindow, websiteWindow, privacyWindow, termsWindow] {
-        window.isHidden = true
+    try host.withController(termsAbout) { termsAbout in
+        try XCTUnwrap(view("about.terms", in: termsAbout.view) as? UIControl)
+            .sendActions(for: .touchUpInside)
+        try assertAlert(on: termsAbout, title: unavailableTitle, message: termsMessage, action: ok, file: file, line: line)
+        XCTAssertEqual(view("about.terms", in: termsAbout.view)?.accessibilityLabel, termsTitle, file: file, line: line)
+        try dismissAlert(on: termsAbout, file: file, line: line)
     }
 }
 
@@ -515,52 +521,140 @@ private func assertAlert(
 }
 
 @MainActor
+private func dismissAlert(
+    on controller: UIViewController,
+    file: StaticString,
+    line: UInt
+) throws {
+    let alert = try XCTUnwrap(controller.presentedViewController as? UIAlertController)
+    alert.dismiss(animated: false)
+    XCTAssertTrue(
+        waitForCondition { controller.presentedViewController == nil },
+        file: file,
+        line: line
+    )
+}
+
+@MainActor
 private func assertSettingsPagesRemainUsableAtAccessibilitySize(
     bundle: Bundle,
     file: StaticString = #filePath,
     line: UInt = #line
 ) throws {
+    let animationsWereEnabled = UIView.areAnimationsEnabled
+    UIView.setAnimationsEnabled(false)
+    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
     let pages: [(UIViewController, String, String)] = [
         (SettingsViewController(localizationBundle: bundle), "settings.scroll", "settings.help"),
         (AboutViewController(localizationBundle: bundle), "about.scroll", "about.terms"),
         (HelpFeedbackViewController(localizationBundle: bundle), "help.scroll", "help.supportWebsite")
     ]
+    let host = try ViewControllerTestHost(frame: CGRect(x: 0, y: 0, width: 320, height: 568))
+    defer { host.tearDown() }
+
     for (controller, scrollIdentifier, lastControlIdentifier) in pages {
-        let parent = UIViewController()
         let traits = UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 568))
-        window.rootViewController = parent
-        window.makeKeyAndVisible()
-        parent.addChild(controller)
-        parent.setOverrideTraitCollection(traits, forChild: controller)
-        traits.performAsCurrent {
-            parent.view.addSubview(controller.view)
+        try host.withController(controller, traits: traits) { controller in
+            let scrollView = try XCTUnwrap(view(scrollIdentifier, in: controller.view) as? UIScrollView)
+            let lastControl = try XCTUnwrap(view(lastControlIdentifier, in: controller.view))
+            XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height, file: file, line: line)
+            scrollView.contentOffset = CGPoint(x: 0, y: scrollView.contentSize.height - scrollView.bounds.height)
+            scrollView.layoutIfNeeded()
+            let lastFrame = lastControl.convert(lastControl.bounds, to: scrollView)
+            XCTAssertLessThanOrEqual(lastFrame.maxY, scrollView.bounds.maxY + 0.5, file: file, line: line)
+
+            for button in allButtons(in: controller.view) {
+                let titleLabel = try XCTUnwrap(button.titleLabel)
+                XCTAssertEqual(titleLabel.numberOfLines, 0, file: file, line: line)
+                let fittingSize = titleLabel.sizeThatFits(
+                    CGSize(width: titleLabel.bounds.width, height: .greatestFiniteMagnitude)
+                )
+                XCTAssertLessThanOrEqual(fittingSize.height, titleLabel.bounds.height + 0.5, file: file, line: line)
+            }
         }
-        controller.view.frame = parent.view.bounds
-        controller.didMove(toParent: parent)
+    }
+}
+
+@MainActor
+private final class ViewControllerTestHost {
+    private let rootViewController: UIViewController
+    private let frame: CGRect
+    private var currentController: UIViewController?
+
+    init(frame: CGRect) throws {
+        let window = try XCTUnwrap(
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .filter { $0.activationState == .foregroundActive }
+                .flatMap(\.windows)
+                .first {
+                    $0.isKeyWindow
+                        && !$0.isHidden
+                        && $0.rootViewController?.viewIfLoaded?.window === $0
+                }
+        )
+        rootViewController = try XCTUnwrap(window.rootViewController)
+        self.frame = frame
+        rootViewController.loadViewIfNeeded()
+        rootViewController.view.layoutIfNeeded()
+    }
+
+    func withController<T>(
+        _ controller: UIViewController,
+        traits: UITraitCollection? = nil,
+        perform: (UIViewController) throws -> T
+    ) rethrows -> T {
+        attach(controller, traits: traits)
+        defer { detach(controller) }
+        return try perform(controller)
+    }
+
+    func tearDown() {
+        if let currentController {
+            detach(currentController)
+        }
+    }
+
+    private func attach(_ controller: UIViewController, traits: UITraitCollection?) {
+        precondition(currentController == nil)
+        rootViewController.addChild(controller)
+        if let traits {
+            rootViewController.setOverrideTraitCollection(traits, forChild: controller)
+        }
+        if let traits {
+            traits.performAsCurrent {
+                rootViewController.view.addSubview(controller.view)
+            }
+        } else {
+            rootViewController.view.addSubview(controller.view)
+        }
+        controller.view.frame = frame
+        controller.didMove(toParent: rootViewController)
         controller.view.layoutIfNeeded()
+        currentController = controller
+    }
 
-        let scrollView = try XCTUnwrap(view(scrollIdentifier, in: controller.view) as? UIScrollView)
-        let lastControl = try XCTUnwrap(view(lastControlIdentifier, in: controller.view))
-        XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height, file: file, line: line)
-        scrollView.contentOffset = CGPoint(x: 0, y: scrollView.contentSize.height - scrollView.bounds.height)
-        scrollView.layoutIfNeeded()
-        let lastFrame = lastControl.convert(lastControl.bounds, to: scrollView)
-        XCTAssertLessThanOrEqual(lastFrame.maxY, scrollView.bounds.maxY + 0.5, file: file, line: line)
-
-        for button in allButtons(in: controller.view) {
-            let titleLabel = try XCTUnwrap(button.titleLabel)
-            XCTAssertEqual(titleLabel.numberOfLines, 0, file: file, line: line)
-            let fittingSize = titleLabel.sizeThatFits(
-                CGSize(width: titleLabel.bounds.width, height: .greatestFiniteMagnitude)
-            )
-            XCTAssertLessThanOrEqual(fittingSize.height, titleLabel.bounds.height + 0.5, file: file, line: line)
-        }
+    private func detach(_ controller: UIViewController) {
+        precondition(currentController === controller)
+        rootViewController.setOverrideTraitCollection(nil, forChild: controller)
         controller.willMove(toParent: nil)
         controller.view.removeFromSuperview()
         controller.removeFromParent()
-        window.isHidden = true
+        currentController = nil
     }
+}
+
+@MainActor
+private func waitForCondition(
+    timeout: TimeInterval = 1,
+    condition: () -> Bool
+) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while !condition(), Date() < deadline {
+        RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+    }
+    return condition()
 }
 
 @MainActor
