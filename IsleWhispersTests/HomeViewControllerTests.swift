@@ -4,6 +4,93 @@ import XCTest
 
 final class HomeViewControllerTests: XCTestCase {
     @MainActor
+    func testHomeVisibleCopyAndAccessibilityUseEnglishBundle() throws {
+        try assertLocalizedHome(
+            language: "en",
+            greeting: "Now · Hear the island",
+            soundTitle: "Rain",
+            mute: "Mute",
+            unmute: "Unmute",
+            soundOn: "Sound On",
+            muted: "Muted",
+            recent: "Recent Sounds",
+            retry: "Retry",
+            retryHint: "Reload the current sound",
+            play: "Play and Open Player",
+            carouselLabel: "Ambient sounds",
+            carouselValue: "Rain, 3 of 15"
+        )
+    }
+
+    @MainActor
+    func testHomeVisibleCopyAndAccessibilityUseSimplifiedChineseBundle() throws {
+        try assertLocalizedHome(
+            language: "zh-Hans",
+            greeting: "此刻 · 听见岛屿",
+            soundTitle: "雨声",
+            mute: "静音",
+            unmute: "恢复声音",
+            soundOn: "声音开启",
+            muted: "已静音",
+            recent: "最近播放",
+            retry: "重试",
+            retryHint: "重新载入当前声音",
+            play: "开始播放并打开播放页",
+            carouselLabel: "环境声音",
+            carouselValue: "雨声，3 / 15"
+        )
+    }
+
+    @MainActor
+    func testHomeVisibleCopyAndAccessibilityUseTraditionalChineseBundle() throws {
+        try assertLocalizedHome(
+            language: "zh-Hant",
+            greeting: "此刻 · 聽見島嶼",
+            soundTitle: "雨聲",
+            mute: "靜音",
+            unmute: "恢復聲音",
+            soundOn: "聲音已開啟",
+            muted: "已靜音",
+            recent: "最近播放",
+            retry: "重試",
+            retryHint: "重新載入目前聲音",
+            play: "開始播放並開啟播放頁",
+            carouselLabel: "環境聲音",
+            carouselValue: "雨聲，3 / 15"
+        )
+    }
+
+    @MainActor
+    func testHomePassesInjectedBundleToRecentPage() throws {
+        let bundle = try LocalizationTestSupport.bundle("en")
+        let context = makeHomeContext(localizationBundle: bundle)
+        defer { context.cleanup() }
+        context.store.record(Sound.catalog[2])
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844)))
+        window.rootViewController = context.controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        layout(context.controller, size: window.bounds.size)
+
+        let recentButton = try XCTUnwrap(
+            findView(identifier: "home.recent", in: context.controller.view) as? UIButton
+        )
+        recentButton.sendActions(for: .touchUpInside)
+
+        let recent = try XCTUnwrap(
+            context.controller.presentedViewController as? RecentSoundsViewController
+        )
+        recent.loadViewIfNeeded()
+        XCTAssertNotNil(findLabel(text: "Recent Sounds", in: recent.view))
+        let collection = try XCTUnwrap(findSubview(UICollectionView.self, in: recent.view))
+        let cell = try XCTUnwrap(
+            recent.collectionView(collection, cellForItemAt: IndexPath(item: 0, section: 0))
+                as? RecentSoundCell
+        )
+        XCTAssertEqual(cell.accessibilityLabel, "Rain: A steady rhythm against the window")
+    }
+
+    @MainActor
     func testSettlingCarouselAutoPlaysOnceAndRecordsRecentSound() throws {
         let context = makeHomeContext()
         defer { context.cleanup() }
@@ -396,18 +483,23 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    private func makeHomeContext(resourceBundle: Bundle = .main) -> HomeContext {
+    private func makeHomeContext(
+        resourceBundle: Bundle = .main,
+        localizationBundle: Bundle = .main
+    ) -> HomeContext {
         let suite = "HomeViewControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let service = AudioPlayerService(
             defaults: defaults,
             configureSystemIntegration: false,
-            resourceBundle: resourceBundle
+            resourceBundle: resourceBundle,
+            localizationBundle: localizationBundle
         )
         let store = RecentSoundsStore(defaults: defaults)
         let controller = HomeViewController(
             playerService: service,
-            recentStore: store
+            recentStore: store,
+            localizationBundle: localizationBundle
         )
         return HomeContext(
             service: service,
@@ -447,6 +539,11 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    private func findLabel(text: String, in root: UIView) -> UILabel? {
+        allLabels(in: root).first { $0.text == text }
+    }
+
+    @MainActor
     private func allLabels(in root: UIView) -> [UILabel] {
         descendants(in: root).compactMap { $0 as? UILabel }
     }
@@ -463,6 +560,69 @@ final class HomeViewControllerTests: XCTestCase {
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
         }
         return controller.presentedViewController == nil
+    }
+
+    @MainActor
+    private func assertLocalizedHome(
+        language: String,
+        greeting: String,
+        soundTitle: String,
+        mute: String,
+        unmute: String,
+        soundOn: String,
+        muted: String,
+        recent: String,
+        retry: String,
+        retryHint: String,
+        play: String,
+        carouselLabel: String,
+        carouselValue: String
+    ) throws {
+        let bundle = try LocalizationTestSupport.bundle(language)
+        let context = makeHomeContext(localizationBundle: bundle)
+        defer { context.cleanup() }
+        context.controller.loadViewIfNeeded()
+
+        let greetingLabel = try XCTUnwrap(
+            findView(identifier: "home.greeting", in: context.controller.view) as? UILabel
+        )
+        let muteButton = try XCTUnwrap(
+            findView(identifier: "home.mute", in: context.controller.view) as? UIButton
+        )
+        let recentButton = try XCTUnwrap(
+            findView(identifier: "home.recent", in: context.controller.view) as? UIButton
+        )
+        let retryButton = try XCTUnwrap(
+            findView(identifier: "home.retry", in: context.controller.view) as? UIButton
+        )
+        let playButton = try XCTUnwrap(
+            findView(identifier: "home.play", in: context.controller.view) as? UIButton
+        )
+        let carousel = try XCTUnwrap(
+            findSubview(InfiniteSoundCarousel.self, in: context.controller.view)
+        )
+        let pageControl = try XCTUnwrap(
+            findSubview(UIPageControl.self, in: context.controller.view)
+        )
+
+        XCTAssertEqual(greetingLabel.text, greeting)
+        XCTAssertNotNil(findLabel(text: soundTitle, in: context.controller.view))
+        XCTAssertEqual(muteButton.accessibilityLabel, mute)
+        XCTAssertEqual(muteButton.accessibilityValue, soundOn)
+        XCTAssertEqual(recentButton.accessibilityLabel, recent)
+        XCTAssertEqual(retryButton.title(for: .normal), retry)
+        XCTAssertEqual(retryButton.accessibilityHint, retryHint)
+        XCTAssertTrue(retryButton.superview?.isHidden == true)
+        XCTAssertEqual(playButton.accessibilityLabel, play)
+        XCTAssertEqual(carousel.accessibilityLabel, carouselLabel)
+        XCTAssertEqual(carousel.accessibilityValue, carouselValue)
+        XCTAssertEqual(pageControl.accessibilityLabel, carouselLabel)
+        XCTAssertEqual(pageControl.accessibilityValue, carouselValue)
+
+        muteButton.sendActions(for: .touchUpInside)
+
+        XCTAssertEqual(muteButton.accessibilityLabel, unmute)
+        XCTAssertEqual(muteButton.accessibilityValue, muted)
     }
 }
 

@@ -3,6 +3,50 @@ import XCTest
 
 final class RootTabBarControllerTests: XCTestCase {
     @MainActor
+    func testRootTabTitlesUseInjectedLanguageBundle() throws {
+        let expectations = [
+            ("en", ["Home", "Sounds", "Settings"]),
+            ("zh-Hans", ["首页", "声音", "设置"]),
+            ("zh-Hant", ["首頁", "聲音", "設定"])
+        ]
+
+        for (language, titles) in expectations {
+            let context = makeRootContext(
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            defer { context.cleanup() }
+            context.controller.loadViewIfNeeded()
+
+            XCTAssertEqual(
+                context.controller.viewControllers?.map { $0.tabBarItem.title ?? "" },
+                titles,
+                language
+            )
+        }
+    }
+
+    @MainActor
+    func testRootPassesInjectedBundleToAllThreeTabs() throws {
+        let context = makeRootContext(
+            localizationBundle: try LocalizationTestSupport.bundle("en")
+        )
+        defer { context.cleanup() }
+        context.controller.homeViewController.loadViewIfNeeded()
+        context.controller.soundLibraryViewController.loadViewIfNeeded()
+        context.controller.settingsViewController.loadViewIfNeeded()
+
+        XCTAssertNotNil(
+            findLabel(text: "Now · Hear the island", in: context.controller.homeViewController.view)
+        )
+        XCTAssertNotNil(
+            findLabel(text: "Sound Library", in: context.controller.soundLibraryViewController.view)
+        )
+        XCTAssertNotNil(
+            findLabel(text: "Settings", in: context.controller.settingsViewController.view)
+        )
+    }
+
+    @MainActor
     func testRootContainsHomeSoundAndSettingsTabs() {
         let context = makeRootContext()
         defer { context.cleanup() }
@@ -110,7 +154,7 @@ final class RootTabBarControllerTests: XCTestCase {
     }
 
     @MainActor
-    private func makeRootContext() -> RootContext {
+    private func makeRootContext(localizationBundle: Bundle = .main) -> RootContext {
         let suite = "RootTabBarControllerTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         let service = AudioPlayerService(
@@ -120,7 +164,8 @@ final class RootTabBarControllerTests: XCTestCase {
         let store = RecentSoundsStore(defaults: defaults)
         let controller = RootTabBarController(
             playerService: service,
-            recentStore: store
+            recentStore: store,
+            localizationBundle: localizationBundle
         )
         return RootContext(
             service: service,
@@ -130,6 +175,18 @@ final class RootTabBarControllerTests: XCTestCase {
                 defaults.removePersistentDomain(forName: suite)
             }
         )
+    }
+
+    @MainActor
+    private func findLabel(text: String, in root: UIView) -> UILabel? {
+        descendants(in: root)
+            .compactMap { $0 as? UILabel }
+            .first { $0.text == text }
+    }
+
+    @MainActor
+    private func descendants(in root: UIView) -> [UIView] {
+        [root] + root.subviews.flatMap(descendants(in:))
     }
 }
 

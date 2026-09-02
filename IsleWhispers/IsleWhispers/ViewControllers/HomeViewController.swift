@@ -2,11 +2,11 @@ import SnapKit
 import UIKit
 
 final class HomeViewController: UIViewController {
-    private static let readyStatus = "准备就绪"
     static let backgroundSettleDuration: TimeInterval = 0.25
 
     private let playerService: AudioPlayerService
     private let recentStore: RecentSoundsStore
+    private let localizationBundle: Bundle
     private let carousel: InfiniteSoundCarousel
     private(set) var displayedSoundIndex: Int
     private var coordinatedRecentSelectionIndex: Int
@@ -36,14 +36,20 @@ final class HomeViewController: UIViewController {
     private let retryButton = UIButton(type: .system)
     private let statusStack = UIStackView()
 
-    init(playerService: AudioPlayerService, recentStore: RecentSoundsStore) {
+    init(
+        playerService: AudioPlayerService,
+        recentStore: RecentSoundsStore,
+        localizationBundle: Bundle = .main
+    ) {
         self.playerService = playerService
         self.recentStore = recentStore
+        self.localizationBundle = localizationBundle
         displayedSoundIndex = playerService.selectedIndex
         coordinatedRecentSelectionIndex = playerService.selectedIndex
         carousel = InfiniteSoundCarousel(
             sounds: Sound.catalog,
-            selectedIndex: playerService.selectedIndex
+            selectedIndex: playerService.selectedIndex,
+            localizationBundle: localizationBundle
         )
         super.init(nibName: nil, bundle: nil)
     }
@@ -117,7 +123,8 @@ final class HomeViewController: UIViewController {
     }
 
     private func setupHeader() {
-        greetingLabel.text = "此刻 · 听见岛屿"
+        greetingLabel.text = L10n.text("home.greeting", bundle: localizationBundle)
+        greetingLabel.accessibilityIdentifier = "home.greeting"
         greetingLabel.font = AppTheme.font(.caption1, weight: .semibold)
         greetingLabel.textColor = UIColor.white.withAlphaComponent(0.74)
         greetingLabel.adjustsFontForContentSizeCategory = true
@@ -131,13 +138,15 @@ final class HomeViewController: UIViewController {
         configureHeaderButton(
             muteButton,
             systemName: "speaker.wave.2.fill",
-            accessibilityLabel: "静音"
+            accessibilityLabel: L10n.text("home.action.mute", bundle: localizationBundle)
         )
+        muteButton.accessibilityIdentifier = "home.mute"
         configureHeaderButton(
             recentButton,
             systemName: "clock.arrow.circlepath",
-            accessibilityLabel: "最近播放"
+            accessibilityLabel: L10n.text("home.action.recent", bundle: localizationBundle)
         )
+        recentButton.accessibilityIdentifier = "home.recent"
 
         let labelStack = UIStackView(arrangedSubviews: [greetingLabel, titleLabel])
         labelStack.axis = .vertical
@@ -198,11 +207,12 @@ final class HomeViewController: UIViewController {
         pageControl.currentPageIndicatorTintColor = .white
         pageControl.pageIndicatorTintColor = UIColor.white.withAlphaComponent(0.30)
         pageControl.isUserInteractionEnabled = false
-        pageControl.accessibilityLabel = "声音位置"
+        pageControl.accessibilityLabel = L10n.text("carousel.label", bundle: localizationBundle)
 
         playPauseButton.tintColor = AppTheme.accentForeground
         playPauseButton.backgroundColor = AppTheme.accent
         playPauseButton.applyRoundedCorners(radius: AppTheme.primaryControlSize / 2)
+        playPauseButton.accessibilityIdentifier = "home.play"
 
         statusLabel.font = AppTheme.font(.footnote, weight: .medium)
         statusLabel.textColor = UIColor.systemRed.withAlphaComponent(0.96)
@@ -211,13 +221,14 @@ final class HomeViewController: UIViewController {
         statusLabel.textAlignment = .center
         statusLabel.accessibilityTraits = .updatesFrequently
 
-        retryButton.setTitle("重试", for: .normal)
+        retryButton.setTitle(L10n.text("common.retry", bundle: localizationBundle), for: .normal)
         retryButton.setTitleColor(.white, for: .normal)
         retryButton.titleLabel?.font = AppTheme.font(.footnote, weight: .semibold)
         retryButton.titleLabel?.adjustsFontForContentSizeCategory = true
         retryButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.82)
         retryButton.applyRoundedCorners(radius: 17)
-        retryButton.accessibilityHint = "重新载入当前声音"
+        retryButton.accessibilityIdentifier = "home.retry"
+        retryButton.accessibilityHint = L10n.text("home.retry.hint", bundle: localizationBundle)
         retryButton.snp.makeConstraints { make in
             make.height.greaterThanOrEqualTo(34)
         }
@@ -315,14 +326,20 @@ final class HomeViewController: UIViewController {
         let selectedIndex = playerService.selectedIndex
         let sound = playerService.currentSound
         displayedSoundIndex = selectedIndex
-        titleLabel.text = sound.title
+        titleLabel.text = sound.title(bundle: localizationBundle)
 
         if carousel.displayedLogicalIndex != selectedIndex {
             carousel.setSelectedSound(index: selectedIndex, animated: false)
         }
 
         pageControl.currentPage = selectedIndex
-        pageControl.accessibilityValue = "\(selectedIndex + 1) / \(Sound.catalog.count)"
+        pageControl.accessibilityValue = L10n.format(
+            "carousel.position.format",
+            bundle: localizationBundle,
+            sound.title(bundle: localizationBundle),
+            Int64(selectedIndex + 1),
+            Int64(Sound.catalog.count)
+        )
 
         let isPlaying = playerService.isPlaying
         let playSymbol = isPlaying ? "waveform" : "play.fill"
@@ -336,9 +353,10 @@ final class HomeViewController: UIViewController {
             ),
             for: .normal
         )
-        playPauseButton.accessibilityLabel = isPlaying
-            ? "打开播放页"
-            : "开始播放并打开播放页"
+        playPauseButton.accessibilityLabel = L10n.text(
+            isPlaying ? "home.action.open_player" : "home.action.play_and_open",
+            bundle: localizationBundle
+        )
 
         let isMuted = playerService.isMuted
         muteButton.setImage(
@@ -351,12 +369,18 @@ final class HomeViewController: UIViewController {
             ),
             for: .normal
         )
-        muteButton.accessibilityLabel = isMuted ? "恢复声音" : "静音"
-        muteButton.accessibilityValue = isMuted ? "已静音" : "声音开启"
+        muteButton.accessibilityLabel = L10n.text(
+            isMuted ? "home.action.unmute" : "home.action.mute",
+            bundle: localizationBundle
+        )
+        muteButton.accessibilityValue = L10n.text(
+            isMuted ? "home.mute.on" : "home.mute.off",
+            bundle: localizationBundle
+        )
 
         sleepTimerView.configure(selected: playerService.sleepTimerOption)
-        let status = playerService.statusMessage
-        let hasError = status != Self.readyStatus
+        let status = L10n.text(playerService.status.localizationKey, bundle: localizationBundle)
+        let hasError = playerService.status != .ready
         statusLabel.text = hasError ? status : nil
         statusStack.isHidden = !hasError
 
@@ -534,7 +558,8 @@ final class HomeViewController: UIViewController {
     @objc private func didTapRecent() {
         let recentController = RecentSoundsViewController(
             sounds: recentStore.recentSounds,
-            selectedSoundID: playerService.currentSound.id
+            selectedSoundID: playerService.currentSound.id,
+            localizationBundle: localizationBundle
         )
         recentController.modalPresentationStyle = .overFullScreen
         recentController.modalTransitionStyle = .crossDissolve

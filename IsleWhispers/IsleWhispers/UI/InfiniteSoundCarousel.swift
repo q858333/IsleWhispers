@@ -8,6 +8,7 @@ final class InfiniteSoundCarousel: UIView {
     var onTransition: ((_ from: Int, _ to: Int, _ progress: CGFloat) -> Void)?
 
     private let sounds: [Sound]
+    private let localizationBundle: Bundle
     private let indexing: InfiniteCarouselIndexing
     private let flowLayout: SoundCarouselFlowLayout
     private let collectionView: UICollectionView
@@ -22,12 +23,17 @@ final class InfiniteSoundCarousel: UIView {
         collectionView.accessibilityElementsHidden
     }
 
-    init(sounds: [Sound], selectedIndex: Int) {
+    init(
+        sounds: [Sound],
+        selectedIndex: Int,
+        localizationBundle: Bundle = .main
+    ) {
         precondition(!sounds.isEmpty)
         let indexing = InfiniteCarouselIndexing(logicalCount: sounds.count)
         let flowLayout = SoundCarouselFlowLayout()
 
         self.sounds = sounds
+        self.localizationBundle = localizationBundle
         self.indexing = indexing
         self.flowLayout = flowLayout
         collectionView = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
@@ -86,7 +92,7 @@ final class InfiniteSoundCarousel: UIView {
 
     private func setupViews() {
         isAccessibilityElement = true
-        accessibilityLabel = "环境声音"
+        accessibilityLabel = L10n.text("carousel.label", bundle: localizationBundle)
         accessibilityTraits = .adjustable
 
         collectionView.backgroundColor = .clear
@@ -107,7 +113,13 @@ final class InfiniteSoundCarousel: UIView {
 
     private func updateAccessibilityValue() {
         let sound = sounds[displayedLogicalIndex]
-        accessibilityValue = "\(sound.title)，\(displayedLogicalIndex + 1) / \(sounds.count)"
+        accessibilityValue = L10n.format(
+            "carousel.position.format",
+            bundle: localizationBundle,
+            sound.title(bundle: localizationBundle),
+            Int64(displayedLogicalIndex + 1),
+            Int64(sounds.count)
+        )
     }
 
     private func scrollToPhysicalItem(_ physicalIndex: Int, animated: Bool) {

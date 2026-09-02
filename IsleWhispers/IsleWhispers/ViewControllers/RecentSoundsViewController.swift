@@ -7,6 +7,7 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
 
     private let sounds: [Sound]
     private let selectedSoundID: String
+    private let localizationBundle: Bundle
     private let backgroundGradient = CAGradientLayer()
     private let titleLabel = UILabel()
     private let closeButton = UIButton(type: .system)
@@ -23,7 +24,10 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         collectionView.alwaysBounceVertical = true
         collectionView.dataSource = self
         collectionView.delegate = self
-        collectionView.accessibilityLabel = "最近播放列表"
+        collectionView.accessibilityLabel = L10n.text(
+            "recent.list.label",
+            bundle: localizationBundle
+        )
         collectionView.register(
             RecentSoundCell.self,
             forCellWithReuseIdentifier: RecentSoundCell.reuseIdentifier
@@ -31,9 +35,14 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         return collectionView
     }()
 
-    init(sounds: [Sound], selectedSoundID: String) {
+    init(
+        sounds: [Sound],
+        selectedSoundID: String,
+        localizationBundle: Bundle = .main
+    ) {
         self.sounds = sounds
         self.selectedSoundID = selectedSoundID
+        self.localizationBundle = localizationBundle
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -82,7 +91,11 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         )
         guard let recentCell = cell as? RecentSoundCell else { return cell }
         let sound = sounds[indexPath.item]
-        recentCell.configure(sound: sound, selected: sound.id == selectedSoundID)
+        recentCell.configure(
+            sound: sound,
+            selected: sound.id == selectedSoundID,
+            localizationBundle: localizationBundle
+        )
         return recentCell
     }
 
@@ -110,7 +123,7 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
     }
 
     private func setupHeader() {
-        titleLabel.text = "最近播放"
+        titleLabel.text = L10n.text("recent.title", bundle: localizationBundle)
         titleLabel.font = AppTheme.font(.largeTitle, weight: .bold)
         titleLabel.textColor = .white
         titleLabel.adjustsFontForContentSizeCategory = true
@@ -125,7 +138,7 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
             ),
             for: .normal
         )
-        closeButton.accessibilityLabel = "关闭最近播放"
+        closeButton.accessibilityLabel = L10n.text("recent.close", bundle: localizationBundle)
         closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
 
         view.addSubview(titleLabel)
@@ -151,13 +164,13 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
     }
 
     private func setupEmptyState() {
-        emptyTitleLabel.text = "还没有最近播放"
+        emptyTitleLabel.text = L10n.text("recent.empty.title", bundle: localizationBundle)
         emptyTitleLabel.font = AppTheme.font(.title2, weight: .bold)
         emptyTitleLabel.textColor = .white
         emptyTitleLabel.adjustsFontForContentSizeCategory = true
         emptyTitleLabel.textAlignment = .center
 
-        emptyDetailLabel.text = "播放声音后会出现在这里"
+        emptyDetailLabel.text = L10n.text("recent.empty.detail", bundle: localizationBundle)
         emptyDetailLabel.font = AppTheme.font(.body)
         emptyDetailLabel.textColor = UIColor.white.withAlphaComponent(0.72)
         emptyDetailLabel.adjustsFontForContentSizeCategory = true

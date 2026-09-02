@@ -4,6 +4,28 @@ import XCTest
 
 final class InfiniteSoundCarouselTests: XCTestCase {
     @MainActor
+    func testCarouselAccessibilityValueUsesLocalizedSoundAndPosition() throws {
+        let expectations = [
+            ("en", "Ambient sounds", "Rain, 3 of 15"),
+            ("zh-Hans", "环境声音", "雨声，3 / 15"),
+            ("zh-Hant", "環境聲音", "雨聲，3 / 15")
+        ]
+
+        for (language, label, value) in expectations {
+            let carousel = makeCarousel(
+                selectedIndex: 2,
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+
+            carousel.accessibilityIncrement()
+            carousel.accessibilityDecrement()
+
+            XCTAssertEqual(carousel.accessibilityLabel, label, language)
+            XCTAssertEqual(carousel.accessibilityValue, value, language)
+        }
+    }
+
+    @MainActor
     func testUsesThreeSegmentsAndCentersSelectedSound() {
         let carousel = makeCarousel(selectedIndex: 2)
 
@@ -118,8 +140,15 @@ final class InfiniteSoundCarouselTests: XCTestCase {
     }
 
     @MainActor
-    private func makeCarousel(selectedIndex: Int) -> InfiniteSoundCarousel {
-        let carousel = InfiniteSoundCarousel(sounds: Sound.catalog, selectedIndex: selectedIndex)
+    private func makeCarousel(
+        selectedIndex: Int,
+        localizationBundle: Bundle = .main
+    ) -> InfiniteSoundCarousel {
+        let carousel = InfiniteSoundCarousel(
+            sounds: Sound.catalog,
+            selectedIndex: selectedIndex,
+            localizationBundle: localizationBundle
+        )
         carousel.frame = CGRect(x: 0, y: 0, width: 390, height: 520)
         carousel.layoutIfNeeded()
         return carousel

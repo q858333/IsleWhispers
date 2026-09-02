@@ -29,14 +29,25 @@ final class RecentSoundCell: UICollectionViewCell {
         imageView.image = nil
     }
 
-    func configure(sound: Sound, selected: Bool) {
+    func configure(
+        sound: Sound,
+        selected: Bool,
+        localizationBundle: Bundle = .main
+    ) {
+        let title = sound.title(bundle: localizationBundle)
+        let subtitle = sound.subtitle(bundle: localizationBundle)
         imageView.image = SoundArtwork.image(for: sound)
         fallbackGradient.isHidden = imageView.image != nil
-        titleLabel.text = sound.title
+        titleLabel.text = title
         waveformView.isHidden = !selected
         imageContainer.layer.borderWidth = selected ? 2 : 0
         imageContainer.layer.borderColor = selected ? UIColor.white.cgColor : UIColor.clear.cgColor
-        accessibilityLabel = "\(sound.title)：\(sound.subtitle)"
+        accessibilityLabel = L10n.format(
+            "sound.accessibility.title_subtitle.format",
+            bundle: localizationBundle,
+            title,
+            subtitle
+        )
         accessibilityTraits = selected ? [.button, .selected] : .button
     }
 

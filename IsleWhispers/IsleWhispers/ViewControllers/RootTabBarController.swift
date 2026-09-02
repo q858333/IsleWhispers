@@ -19,26 +19,32 @@ final class RootTabBarController: UITabBarController {
         }
     }
 
-    init(playerService: AudioPlayerService, recentStore: RecentSoundsStore) {
+    init(
+        playerService: AudioPlayerService,
+        recentStore: RecentSoundsStore,
+        localizationBundle: Bundle = .main
+    ) {
         self.playerService = playerService
         self.recentStore = recentStore
         homeViewController = HomeViewController(
             playerService: playerService,
-            recentStore: recentStore
+            recentStore: recentStore,
+            localizationBundle: localizationBundle
         )
         soundLibraryViewController = SoundLibraryViewController(
-            selectedSoundID: playerService.currentSound.id
+            selectedSoundID: playerService.currentSound.id,
+            localizationBundle: localizationBundle
         )
-        settingsViewController = SettingsViewController()
+        settingsViewController = SettingsViewController(localizationBundle: localizationBundle)
         super.init(nibName: nil, bundle: nil)
 
         homeViewController.tabBarItem = UITabBarItem(
-            title: "首页",
+            title: L10n.text("tab.home", bundle: localizationBundle),
             image: UIImage(systemName: "house.fill"),
             selectedImage: UIImage(systemName: "house.fill")
         )
         soundLibraryViewController.tabBarItem = UITabBarItem(
-            title: "声音",
+            title: L10n.text("tab.sounds", bundle: localizationBundle),
             image: UIImage(systemName: "square.grid.2x2.fill"),
             selectedImage: UIImage(systemName: "square.grid.2x2.fill")
         )
@@ -46,7 +52,7 @@ final class RootTabBarController: UITabBarController {
             rootViewController: settingsViewController
         )
         settingsNavigationController.tabBarItem = UITabBarItem(
-            title: "设置",
+            title: L10n.text("tab.settings", bundle: localizationBundle),
             image: UIImage(systemName: "gearshape.fill"),
             selectedImage: UIImage(systemName: "gearshape.fill")
         )

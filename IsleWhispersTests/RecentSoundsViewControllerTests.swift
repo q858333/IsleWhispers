@@ -4,6 +4,69 @@ import XCTest
 
 final class RecentSoundsViewControllerTests: XCTestCase {
     @MainActor
+    func testRecentPageAndCellsUseInjectedLanguageBundle() throws {
+        let expectations: [(String, String, String, String, String, String, String, String)] = [
+            (
+                "en", "Recent Sounds", "Recent sounds list", "Close Recent Sounds",
+                "No Recent Sounds Yet", "Sounds you play will appear here.",
+                "Rain", "Rain: A steady rhythm against the window"
+            ),
+            (
+                "zh-Hans", "最近播放", "最近播放列表", "关闭最近播放",
+                "还没有最近播放", "播放声音后会出现在这里",
+                "雨声", "雨声：均匀落在窗边"
+            ),
+            (
+                "zh-Hant", "最近播放", "最近播放列表", "關閉最近播放",
+                "尚無最近播放", "你播放過的聲音會顯示在這裡。",
+                "雨聲", "雨聲：均勻落在窗邊"
+            )
+        ]
+
+        for expectation in expectations {
+            let bundle = try LocalizationTestSupport.bundle(expectation.0)
+            let controller = RecentSoundsViewController(
+                sounds: [Sound.catalog[2]],
+                selectedSoundID: Sound.catalog[2].id,
+                localizationBundle: bundle
+            )
+            layout(controller, size: CGSize(width: 390, height: 844))
+            let collection = try XCTUnwrap(findCollectionView(in: controller.view))
+            let cell = try XCTUnwrap(
+                controller.collectionView(
+                    collection,
+                    cellForItemAt: IndexPath(item: 0, section: 0)
+                ) as? RecentSoundCell
+            )
+
+            XCTAssertNotNil(findLabel(text: expectation.1, in: controller.view), expectation.0)
+            XCTAssertEqual(collection.accessibilityLabel, expectation.2, expectation.0)
+            XCTAssertNotNil(findButton(label: expectation.3, in: controller.view), expectation.0)
+            XCTAssertNotNil(findLabel(text: expectation.6, in: cell), expectation.0)
+            XCTAssertEqual(cell.accessibilityLabel, expectation.7, expectation.0)
+            XCTAssertTrue(
+                cell.accessibilityTraits.contains(UIAccessibilityTraits.selected),
+                expectation.0
+            )
+
+            let emptyController = RecentSoundsViewController(
+                sounds: [],
+                selectedSoundID: Sound.catalog[2].id,
+                localizationBundle: bundle
+            )
+            emptyController.loadViewIfNeeded()
+            XCTAssertNotNil(
+                findLabel(text: expectation.4, in: emptyController.view),
+                expectation.0
+            )
+            XCTAssertNotNil(
+                findLabel(text: expectation.5, in: emptyController.view),
+                expectation.0
+            )
+        }
+    }
+
+    @MainActor
     func testShowsSixRecentSoundsInThreeColumnsAndReportsSelection() throws {
         let sounds = Array(Sound.catalog.prefix(6))
         let controller = RecentSoundsViewController(
