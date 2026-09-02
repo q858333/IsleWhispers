@@ -8,9 +8,103 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         let controller = SoundLibraryViewController(selectedSoundID: Sound.catalog[2].id)
         controller.loadViewIfNeeded()
 
-        XCTAssertEqual(controller.sectionTitles, ["nature", "life", "atmosphere"])
+        XCTAssertEqual(controller.sectionTitles, ["自然", "生活", "氛围"])
         XCTAssertEqual(controller.sectionItemCounts, [7, 5, 3])
         XCTAssertEqual(controller.sectionItemCounts.reduce(0, +), 15)
+    }
+
+    @MainActor
+    func testEnglishLibraryUsesLocalizedTitleGroupsAndCards() throws {
+        let bundle = try LocalizationTestSupport.bundle("en")
+        let controller = SoundLibraryViewController(
+            selectedSoundID: Sound.catalog[2].id,
+            localizationBundle: bundle
+        )
+
+        try assertLocalizedLibrary(
+            controller,
+            title: "Sound Library",
+            listLabel: "Sound library",
+            groups: ["Nature", "Everyday", "Atmosphere"],
+            firstCard: ("Thunder", "A deep rumble in the distance"),
+            firstAccessibilityLabel: "Thunder: A deep rumble in the distance",
+            lastCard: ("Space", "A wide, weightless ambience"),
+            lastAccessibilityLabel: "Space: A wide, weightless ambience"
+        )
+    }
+
+    @MainActor
+    func testSimplifiedChineseLibraryUsesLocalizedTitleGroupsAndCards() throws {
+        let bundle = try LocalizationTestSupport.bundle("zh-Hans")
+        let controller = SoundLibraryViewController(
+            selectedSoundID: Sound.catalog[2].id,
+            localizationBundle: bundle
+        )
+
+        try assertLocalizedLibrary(
+            controller,
+            title: "声音库",
+            listLabel: "声音库",
+            groups: ["自然", "生活", "氛围"],
+            firstCard: ("雷声", "低沉而遥远"),
+            firstAccessibilityLabel: "雷声：低沉而遥远",
+            lastCard: ("太空", "宽阔漂浮氛围"),
+            lastAccessibilityLabel: "太空：宽阔漂浮氛围"
+        )
+    }
+
+    @MainActor
+    func testTraditionalChineseLibraryUsesLocalizedTitleGroupsAndCards() throws {
+        let bundle = try LocalizationTestSupport.bundle("zh-Hant")
+        let controller = SoundLibraryViewController(
+            selectedSoundID: Sound.catalog[2].id,
+            localizationBundle: bundle
+        )
+
+        try assertLocalizedLibrary(
+            controller,
+            title: "聲音庫",
+            listLabel: "聲音庫",
+            groups: ["自然", "日常", "氛圍"],
+            firstCard: ("雷聲", "低沉而遙遠"),
+            firstAccessibilityLabel: "雷聲：低沉而遙遠",
+            lastCard: ("太空", "寬闊無重力的氛圍"),
+            lastAccessibilityLabel: "太空：寬闊無重力的氛圍"
+        )
+    }
+
+    @MainActor
+    func testEnglishCardsRemainReadableAt320WidthAndAccessibilitySize() throws {
+        for language in ["en", "zh-Hant"] {
+            let controller = SoundLibraryViewController(
+                selectedSoundID: Sound.catalog[2].id,
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            let host = UIViewController()
+            host.loadViewIfNeeded()
+            host.addChild(controller)
+            host.setOverrideTraitCollection(
+                UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+                forChild: controller
+            )
+            host.view.addSubview(controller.view)
+            controller.view.frame = CGRect(x: 0, y: 0, width: 320, height: 568)
+            controller.didMove(toParent: host)
+            controller.view.layoutIfNeeded()
+
+            let collectionView = try XCTUnwrap(findCollectionView(in: controller.view))
+            collectionView.layoutIfNeeded()
+            XCTAssertGreaterThan(collectionView.contentSize.height, collectionView.bounds.height)
+
+            let firstCell: UICollectionViewCell = try XCTUnwrap(
+                collectionView.cellForItem(at: IndexPath(item: 0, section: 0))
+            )
+            let labels = labels(in: firstCell.contentView)
+            XCTAssertTrue(labels.allSatisfy { $0.numberOfLines == 0 })
+            for element in accessibilityElements(in: firstCell) {
+                XCTAssertTrue(firstCell.bounds.contains(firstCell.convert(element.bounds, from: element)))
+            }
+        }
     }
 
     @MainActor
@@ -75,5 +169,68 @@ final class SoundLibraryViewControllerTests: XCTestCase {
             return collectionView
         }
         return view.subviews.lazy.compactMap(findCollectionView(in:)).first
+    }
+
+    @MainActor
+    private func assertLocalizedLibrary(
+        _ controller: SoundLibraryViewController,
+        title: String,
+        listLabel: String,
+        groups: [String],
+        firstCard: (String, String),
+        firstAccessibilityLabel: String,
+        lastCard: (String, String),
+        lastAccessibilityLabel: String
+    ) throws {
+        controller.loadViewIfNeeded()
+        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        controller.view.layoutIfNeeded()
+
+        XCTAssertTrue(labels(in: controller.view).contains { $0.text == title })
+        let collectionView = try XCTUnwrap(findCollectionView(in: controller.view))
+        collectionView.reloadData()
+        collectionView.layoutIfNeeded()
+        XCTAssertEqual(collectionView.accessibilityLabel, listLabel)
+        XCTAssertEqual(controller.sectionTitles, groups)
+
+        assertCard(
+            controller,
+            collectionView: collectionView,
+            indexPath: IndexPath(item: 0, section: 0),
+            expected: firstCard,
+            accessibilityLabel: firstAccessibilityLabel
+        )
+        assertCard(
+            controller,
+            collectionView: collectionView,
+            indexPath: IndexPath(item: 2, section: 2),
+            expected: lastCard,
+            accessibilityLabel: lastAccessibilityLabel
+        )
+    }
+
+    @MainActor
+    private func assertCard(
+        _ controller: SoundLibraryViewController,
+        collectionView: UICollectionView,
+        indexPath: IndexPath,
+        expected: (String, String),
+        accessibilityLabel: String
+    ) {
+        let cell = controller.collectionView(collectionView, cellForItemAt: indexPath)
+        let expectedTexts = Set([expected.0, expected.1])
+
+        XCTAssertEqual(Set(labels(in: cell.contentView).compactMap(\.text)), expectedTexts)
+        XCTAssertEqual(cell.accessibilityLabel, accessibilityLabel)
+    }
+
+    private func labels(in view: UIView) -> [UILabel] {
+        let directLabels = view.subviews.compactMap { $0 as? UILabel }
+        return directLabels + view.subviews.flatMap(labels(in:))
+    }
+
+    private func accessibilityElements(in view: UIView) -> [UIView] {
+        let directElements = view.isAccessibilityElement ? [view] : []
+        return directElements + view.subviews.flatMap(accessibilityElements(in:))
     }
 }

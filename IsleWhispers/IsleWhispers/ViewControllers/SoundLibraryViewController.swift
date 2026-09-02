@@ -9,8 +9,9 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
 
     var onSelect: ((Int) -> Void)?
     private(set) var selectedSoundID: String
+    private let localizationBundle: Bundle
 
-    var sectionTitles: [String] { sections.map { $0.category.rawValue } }
+    var sectionTitles: [String] { sections.map { $0.category.title(bundle: localizationBundle) } }
     var sectionItemCounts: [Int] { sections.map { $0.sounds.count } }
 
     private let sections: [Section] = SoundCategory.allCases.map { category in
@@ -29,7 +30,7 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
         collectionView.alwaysBounceVertical = true
         collectionView.dataSource = self
         collectionView.delegate = self
-        collectionView.accessibilityLabel = "声音库"
+        collectionView.accessibilityLabel = L10n.text("library.list.label", bundle: localizationBundle)
         collectionView.register(
             LibrarySoundCardCell.self,
             forCellWithReuseIdentifier: LibrarySoundCardCell.reuseIdentifier
@@ -42,8 +43,9 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
         return collectionView
     }()
 
-    init(selectedSoundID: String) {
+    init(selectedSoundID: String, localizationBundle: Bundle = .main) {
         self.selectedSoundID = selectedSoundID
+        self.localizationBundle = localizationBundle
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -107,7 +109,11 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
         guard let soundCell = cell as? LibrarySoundCardCell else { return cell }
 
         let sound = sections[indexPath.section].sounds[indexPath.item]
-        soundCell.configure(sound: sound, selected: sound.id == selectedSoundID)
+        soundCell.configure(
+            sound: sound,
+            selected: sound.id == selectedSoundID,
+            localizationBundle: localizationBundle
+        )
         return soundCell
     }
 
@@ -135,7 +141,7 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
                 make.leading.trailing.bottom.equalToSuperview().inset(16)
             }
         }
-        label.text = sections[indexPath.section].category.rawValue
+        label.text = sectionTitles[indexPath.section]
         return header
     }
 
@@ -160,7 +166,7 @@ final class SoundLibraryViewController: UIViewController, UICollectionViewDataSo
     }
 
     private func setupHeader() {
-        titleLabel.text = "声音库"
+        titleLabel.text = L10n.text("library.title", bundle: localizationBundle)
         titleLabel.font = AppTheme.font(.largeTitle, weight: .bold)
         titleLabel.textColor = warmForeground
         titleLabel.adjustsFontForContentSizeCategory = true

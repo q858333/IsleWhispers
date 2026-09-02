@@ -32,14 +32,19 @@ final class LibrarySoundCardCell: UICollectionViewCell {
         artworkImageView.image = nil
     }
 
-    func configure(sound: Sound, selected: Bool) {
+    func configure(sound: Sound, selected: Bool, localizationBundle: Bundle = .main) {
         artworkImageView.image = SoundArtwork.image(for: sound)
         fallbackGradient.isHidden = artworkImageView.image != nil
-        titleLabel.text = sound.title
-        subtitleLabel.text = sound.subtitle
+        titleLabel.text = sound.title(bundle: localizationBundle)
+        subtitleLabel.text = sound.subtitle(bundle: localizationBundle)
         contentView.layer.borderWidth = selected ? 2 : 0
         contentView.layer.borderColor = selected ? UIColor.white.cgColor : UIColor.clear.cgColor
-        accessibilityLabel = "\(sound.title)：\(sound.subtitle)"
+        accessibilityLabel = L10n.format(
+            "sound.accessibility.title_subtitle.format",
+            bundle: localizationBundle,
+            sound.title(bundle: localizationBundle),
+            sound.subtitle(bundle: localizationBundle)
+        )
         accessibilityTraits = selected ? [.button, .selected] : .button
     }
 
