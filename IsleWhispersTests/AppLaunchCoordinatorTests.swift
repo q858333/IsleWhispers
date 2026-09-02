@@ -85,7 +85,10 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         launch.loadViewIfNeeded()
         XCTAssertNotNil(view("launch.logo", in: launch.view) as? UIImageView)
         XCTAssertEqual((view("launch.title", in: launch.view) as? UILabel)?.text, "IsleWhispers")
-        XCTAssertEqual((view("launch.subtitle", in: launch.view) as? UILabel)?.text, "聆听自然，放松此刻")
+        XCTAssertEqual(
+            (view("launch.subtitle", in: launch.view) as? UILabel)?.text,
+            L10n.text("launch.subtitle")
+        )
         XCTAssertNotNil(view("launch.agreement", in: launch.view))
         XCTAssertEqual(rootCreationCount, 0)
     }
@@ -132,7 +135,10 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: LaunchViewController.agreementAcceptedDefaultsKey))
         XCTAssertFalse(routeWasScheduled)
         XCTAssertNotNil(view("launch.agreement", in: launch.view)?.superview)
-        XCTAssertEqual((launch.presentedViewController as? UIAlertController)?.title, "需要同意后继续")
+        XCTAssertEqual(
+            (launch.presentedViewController as? UIAlertController)?.title,
+            L10n.text("launch.agreement.required.title")
+        )
     }
 
     func testAcceptedStartSchedulesOneSecondRouteAndCreatesMainInterfaceOnlyOnCompletion() throws {
@@ -189,7 +195,7 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         )
         let attributedText = try XCTUnwrap(copyLabel.attributedText)
         let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
-        for title in ["用户协议", "隐私政策"] {
+        for title in [L10n.text("launch.agreement.terms"), L10n.text("launch.agreement.privacy")] {
             let range = (attributedText.string as NSString).range(of: title)
             let highlight = try XCTUnwrap(
                 attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil)
@@ -198,15 +204,20 @@ final class AppLaunchCoordinatorTests: XCTestCase {
             highlight.tapAction?(copyLabel, attributedText, range, .zero)
         }
 
-        XCTAssertEqual(unavailableTitles, ["用户协议", "隐私政策"])
+        XCTAssertEqual(
+            unavailableTitles,
+            [L10n.text("launch.agreement.terms"), L10n.text("launch.agreement.privacy")]
+        )
     }
 
-    func testAgreementActionsRemainReachableOnSmallScreenWithAccessibilityText() throws {
+    func testEnglishAgreementActionsRemainReachableAt320By568WithAccessibilityText() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        let english = try LocalizationTestSupport.bundle("en")
         let launch = LaunchViewController(
             agreementDefaults: defaults,
+            localizationBundle: english,
             scheduleRoute: { _ in },
             onContinue: {}
         )
@@ -231,24 +242,140 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         let actions = try XCTUnwrap(
             view("launch.agreement.actions", in: launch.view) as? UIStackView
         )
-        let titleLabel = try XCTUnwrap(
-            label("欢迎使用 IsleWhispers", in: launch.view)
-        )
-        let acceptFrame = acceptButton.convert(acceptButton.bounds, to: launch.view)
-        let declineFrame = declineButton.convert(declineButton.bounds, to: launch.view)
-        let naturalTitleWidth = titleLabel.sizeThatFits(
-            CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        ).width
+        let scrollView = try XCTUnwrap(scrollView(in: launch.view))
+        let scrollContent = try XCTUnwrap(scrollView.subviews.first)
 
         XCTAssertEqual(actions.axis, .vertical)
-        XCTAssertTrue(
-            naturalTitleWidth <= titleLabel.bounds.width + 0.5 || titleLabel.numberOfLines == 0,
-            "标题超出可用宽度时必须允许换行"
+        XCTAssertTrue(acceptButton.isDescendant(of: scrollContent))
+        XCTAssertTrue(declineButton.isDescendant(of: scrollContent))
+        XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height)
+        scrollView.contentOffset = CGPoint(
+            x: 0,
+            y: max(0, scrollView.contentSize.height - scrollView.bounds.height)
         )
-        XCTAssertGreaterThanOrEqual(acceptFrame.minY, 0)
-        XCTAssertLessThanOrEqual(declineFrame.maxY, launch.view.bounds.maxY)
+        scrollView.layoutIfNeeded()
+        let acceptFrame = acceptButton.convert(acceptButton.bounds, to: scrollView)
+        XCTAssertLessThanOrEqual(acceptFrame.maxY, scrollView.bounds.maxY)
         XCTAssertGreaterThanOrEqual(acceptFrame.height, 52)
-        XCTAssertGreaterThanOrEqual(declineFrame.height, 44)
+        XCTAssertGreaterThanOrEqual(declineButton.bounds.height, 44)
+    }
+
+    func testAgreementCopyAndActionsAreLocalizedInAllThreeLanguages() throws {
+        let expectations = [
+            ("en", "Terms of Use", "Privacy Policy"),
+            ("zh-Hans", "用户协议", "隐私政策"),
+            ("zh-Hant", "使用者協議", "隱私權政策")
+        ]
+
+        for (language, expectedTerms, expectedPrivacy) in expectations {
+            let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let bundle = try LocalizationTestSupport.bundle(language)
+            let launch = LaunchViewController(
+                agreementDefaults: defaults,
+                localizationBundle: bundle,
+                scheduleRoute: { _ in },
+                onContinue: {}
+            )
+            launch.loadViewIfNeeded()
+
+            let copy = try XCTUnwrap(view("launch.agreement.copy", in: launch.view) as? YYLabel)
+            XCTAssertEqual(copy.text, L10n.text("launch.agreement.body", bundle: bundle))
+            XCTAssertTrue(copy.text?.contains(expectedTerms) == true)
+            XCTAssertTrue(copy.text?.contains(expectedPrivacy) == true)
+            XCTAssertEqual(L10n.text("launch.agreement.terms", bundle: bundle), expectedTerms)
+            XCTAssertEqual(L10n.text("launch.agreement.privacy", bundle: bundle), expectedPrivacy)
+            XCTAssertEqual(
+                (view("launch.agreement.accept", in: launch.view) as? UIButton)?.title(for: .normal),
+                L10n.text("launch.agreement.accept", bundle: bundle)
+            )
+            XCTAssertEqual(
+                (view("launch.agreement.decline", in: launch.view) as? UIButton)?.title(for: .normal),
+                L10n.text("launch.agreement.decline", bundle: bundle)
+            )
+        }
+    }
+
+    func testAgreementHighlightsBothLocalizedDocumentNames() throws {
+        let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let bundle = try LocalizationTestSupport.bundle(language)
+            var unavailableTitles: [String] = []
+            let launch = LaunchViewController(
+                agreementDefaults: defaults,
+                localizationBundle: bundle,
+                links: AppSupportLinks(privacyPolicyURL: nil, termsOfUseURL: nil, supportURL: nil),
+                scheduleRoute: { _ in },
+                unavailableHandler: { unavailableTitles.append($0) },
+                onContinue: {}
+            )
+            launch.loadViewIfNeeded()
+
+            let copy = try XCTUnwrap(view("launch.agreement.copy", in: launch.view) as? YYLabel)
+            let attributedText = try XCTUnwrap(copy.attributedText)
+            for title in [
+                L10n.text("launch.agreement.terms", bundle: bundle),
+                L10n.text("launch.agreement.privacy", bundle: bundle)
+            ] {
+                let range = (attributedText.string as NSString).range(of: title)
+                XCTAssertNotEqual(range.location, NSNotFound, "\(language): \(title)")
+                let highlight = try XCTUnwrap(
+                    attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil)
+                        as? YYTextHighlight
+                )
+                highlight.tapAction?(copy, attributedText, range, .zero)
+            }
+            XCTAssertEqual(
+                unavailableTitles,
+                [
+                    L10n.text("launch.agreement.terms", bundle: bundle),
+                    L10n.text("launch.agreement.privacy", bundle: bundle)
+                ]
+            )
+        }
+    }
+
+    func testAgreementVoiceOverActionsUseLocalizedNames() throws {
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let bundle = try LocalizationTestSupport.bundle(language)
+            var unavailableTitles: [String] = []
+            let launch = LaunchViewController(
+                agreementDefaults: defaults,
+                localizationBundle: bundle,
+                links: AppSupportLinks(privacyPolicyURL: nil, termsOfUseURL: nil, supportURL: nil),
+                scheduleRoute: { _ in },
+                unavailableHandler: { unavailableTitles.append($0) },
+                onContinue: {}
+            )
+            launch.loadViewIfNeeded()
+
+            let copy = try XCTUnwrap(view("launch.agreement.copy", in: launch.view) as? YYLabel)
+            let actions = try XCTUnwrap(copy.accessibilityCustomActions)
+            XCTAssertEqual(
+                actions.map(\.name),
+                [
+                    L10n.text("launch.agreement.open_terms", bundle: bundle),
+                    L10n.text("launch.agreement.open_privacy", bundle: bundle)
+                ]
+            )
+            for action in actions {
+                XCTAssertEqual(action.actionHandler?(action), true)
+            }
+            XCTAssertEqual(
+                unavailableTitles,
+                [
+                    L10n.text("launch.agreement.terms", bundle: bundle),
+                    L10n.text("launch.agreement.privacy", bundle: bundle)
+                ]
+            )
+        }
     }
 
     func testAgreementVoiceOverActionsOpenBothDocuments() throws {
@@ -269,12 +396,18 @@ final class AppLaunchCoordinatorTests: XCTestCase {
             view("launch.agreement.copy", in: launch.view) as? YYLabel
         )
         let actions = try XCTUnwrap(copyLabel.accessibilityCustomActions)
-        XCTAssertEqual(actions.map(\.name), ["打开用户协议", "打开隐私政策"])
+        XCTAssertEqual(
+            actions.map(\.name),
+            [L10n.text("launch.agreement.open_terms"), L10n.text("launch.agreement.open_privacy")]
+        )
         for action in actions {
             XCTAssertEqual(action.actionHandler?(action), true)
         }
 
-        XCTAssertEqual(unavailableTitles, ["用户协议", "隐私政策"])
+        XCTAssertEqual(
+            unavailableTitles,
+            [L10n.text("launch.agreement.terms"), L10n.text("launch.agreement.privacy")]
+        )
     }
 
     func testAgreementEmbedsDocumentActionsInInteractiveRichText() throws {
@@ -294,7 +427,7 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(String(describing: type(of: copyView)), "YYLabel")
         XCTAssertEqual(
             copyView.accessibilityCustomActions?.map(\.name),
-            ["打开用户协议", "打开隐私政策"]
+            [L10n.text("launch.agreement.open_terms"), L10n.text("launch.agreement.open_privacy")]
         )
         XCTAssertEqual(
             (view("launch.agreement.actions", in: launch.view) as? UIStackView)?.axis,
@@ -304,7 +437,7 @@ final class AppLaunchCoordinatorTests: XCTestCase {
             copyView.value(forKey: "attributedText") as? NSAttributedString
         )
         let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
-        for title in ["用户协议", "隐私政策"] {
+        for title in [L10n.text("launch.agreement.terms"), L10n.text("launch.agreement.privacy")] {
             let range = (attributedText.string as NSString).range(of: title)
             XCTAssertNotEqual(range.location, NSNotFound, title)
             XCTAssertNotNil(
@@ -332,9 +465,9 @@ private func view(_ identifier: String, in root: UIView) -> UIView? {
 }
 
 @MainActor
-private func label(_ text: String, in root: UIView) -> UILabel? {
-    if let label = root as? UILabel, label.text == text {
-        return label
+private func scrollView(in root: UIView) -> UIScrollView? {
+    if let scrollView = root as? UIScrollView {
+        return scrollView
     }
-    return root.subviews.lazy.compactMap { label(text, in: $0) }.first
+    return root.subviews.lazy.compactMap { scrollView(in: $0) }.first
 }

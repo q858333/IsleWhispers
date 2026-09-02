@@ -37,7 +37,7 @@
                                                 <color key="textColor" red="0.035" green="0.105" blue="0.145" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                                                 <nil key="highlightedColor"/>
                                             </label>
-                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="聆听自然，放松此刻" textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="1" baselineAdjustment="alignBaselines" translatesAutoresizingMaskIntoConstraints="NO" id="lch-sub-txt">
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Listen to nature. Be here now." textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="1" baselineAdjustment="alignBaselines" translatesAutoresizingMaskIntoConstraints="NO" id="lch-sub-txt">
                                                 <rect key="frame" x="25.666666666666671" y="48.666666666666664" width="151" height="28"/>
                                                 <accessibility key="accessibilityConfiguration" identifier="launch.subtitle"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="17"/>

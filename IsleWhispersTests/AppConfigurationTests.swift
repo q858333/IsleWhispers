@@ -14,8 +14,11 @@ final class AppConfigurationTests: XCTestCase {
 
     @MainActor
     func testSystemLaunchScreenUsesBrandArtworkAndCopy() throws {
+        let baseBundle = try XCTUnwrap(
+            Bundle(path: try XCTUnwrap(Bundle.main.path(forResource: "Base", ofType: "lproj")))
+        )
         let launch = try XCTUnwrap(
-            UIStoryboard(name: "LaunchScreen", bundle: .main).instantiateInitialViewController()
+            UIStoryboard(name: "LaunchScreen", bundle: baseBundle).instantiateInitialViewController()
         )
         launch.loadViewIfNeeded()
 
@@ -26,8 +29,24 @@ final class AppConfigurationTests: XCTestCase {
         )
         XCTAssertEqual(
             (configurationView("launch.subtitle", in: launch.view) as? UILabel)?.text,
-            "聆听自然，放松此刻"
+            "Listen to nature. Be here now."
         )
+    }
+
+    func testSimplifiedChineseLaunchScreenOverrideExists() throws {
+        let path = try XCTUnwrap(
+            Bundle.main.path(forResource: "LaunchScreen", ofType: "strings", inDirectory: "zh-Hans.lproj")
+        )
+        let strings = try String(contentsOfFile: path, encoding: .utf8)
+        XCTAssertTrue(strings.contains("\"lch-sub-txt.text\" = \"聆听自然，放松此刻\";"))
+    }
+
+    func testTraditionalChineseLaunchScreenOverrideExists() throws {
+        let path = try XCTUnwrap(
+            Bundle.main.path(forResource: "LaunchScreen", ofType: "strings", inDirectory: "zh-Hant.lproj")
+        )
+        let strings = try String(contentsOfFile: path, encoding: .utf8)
+        XCTAssertTrue(strings.contains("\"lch-sub-txt.text\" = \"聆聽自然，放鬆此刻\";"))
     }
 }
 

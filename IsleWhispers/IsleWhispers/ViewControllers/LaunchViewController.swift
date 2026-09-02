@@ -13,6 +13,7 @@ final class LaunchViewController: UIViewController {
 
     private let registerDevice: LaunchAction
     private let agreementDefaults: UserDefaults
+    private let localizationBundle: Bundle
     private let links: AppSupportLinks
     private let scheduleRoute: RouteScheduler
     private let unavailableHandler: ((String) -> Void)?
@@ -24,6 +25,7 @@ final class LaunchViewController: UIViewController {
     init(
         registerDevice: LaunchAction? = nil,
         agreementDefaults: UserDefaults,
+        localizationBundle: Bundle = .main,
         links: AppSupportLinks? = nil,
         scheduleRoute: @escaping RouteScheduler,
         unavailableHandler: ((String) -> Void)? = nil,
@@ -33,6 +35,7 @@ final class LaunchViewController: UIViewController {
             try? await DeviceRegistrationService.shared.registerWithRetry()
         }
         self.agreementDefaults = agreementDefaults
+        self.localizationBundle = localizationBundle
         self.links = links ?? .current
         self.scheduleRoute = scheduleRoute
         self.unavailableHandler = unavailableHandler
@@ -98,7 +101,7 @@ final class LaunchViewController: UIViewController {
 
         let subtitleLabel = UILabel()
         subtitleLabel.accessibilityIdentifier = "launch.subtitle"
-        subtitleLabel.text = "聆听自然，放松此刻"
+        subtitleLabel.text = L10n.text("launch.subtitle", bundle: localizationBundle)
         subtitleLabel.textAlignment = .center
         subtitleLabel.textColor = AppTheme.accentForeground.withAlphaComponent(0.72)
         subtitleLabel.font = AppTheme.font(.body)
@@ -146,7 +149,7 @@ final class LaunchViewController: UIViewController {
         scrollContentView.addSubview(card)
 
         let titleLabel = UILabel()
-        titleLabel.text = "欢迎使用 IsleWhispers"
+        titleLabel.text = L10n.text("launch.agreement.title", bundle: localizationBundle)
         titleLabel.font = AppTheme.font(.title2, weight: .bold)
         titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.numberOfLines = 0
@@ -156,7 +159,10 @@ final class LaunchViewController: UIViewController {
 
         let acceptButton = UIButton(type: .system)
         acceptButton.accessibilityIdentifier = "launch.agreement.accept"
-        acceptButton.setTitle("同意并继续", for: .normal)
+        acceptButton.setTitle(
+            L10n.text("launch.agreement.accept", bundle: localizationBundle),
+            for: .normal
+        )
         acceptButton.titleLabel?.font = AppTheme.font(.headline, weight: .semibold)
         acceptButton.titleLabel?.adjustsFontForContentSizeCategory = true
         acceptButton.setTitleColor(.white, for: .normal)
@@ -166,7 +172,10 @@ final class LaunchViewController: UIViewController {
 
         let declineButton = UIButton(type: .system)
         declineButton.accessibilityIdentifier = "launch.agreement.decline"
-        declineButton.setTitle("暂不同意", for: .normal)
+        declineButton.setTitle(
+            L10n.text("launch.agreement.decline", bundle: localizationBundle),
+            for: .normal
+        )
         declineButton.titleLabel?.font = AppTheme.font(.body, weight: .semibold)
         declineButton.titleLabel?.adjustsFontForContentSizeCategory = true
         declineButton.setTitleColor(AppTheme.accentForeground, for: .normal)
@@ -238,7 +247,9 @@ final class LaunchViewController: UIViewController {
     }
 
     private func makeAgreementCopy() -> YYLabel {
-        let message = "请阅读并同意《用户协议》和《隐私政策》后继续使用。"
+        let message = L10n.text("launch.agreement.body", bundle: localizationBundle)
+        let terms = L10n.text("launch.agreement.terms", bundle: localizationBundle)
+        let privacy = L10n.text("launch.agreement.privacy", bundle: localizationBundle)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
         paragraphStyle.lineSpacing = 5
@@ -250,12 +261,13 @@ final class LaunchViewController: UIViewController {
                 .paragraphStyle: paragraphStyle
             ]
         )
-        addAgreementHighlight("用户协议", to: text) { [weak self] in
+        let addedTerms = addAgreementHighlight(terms, to: text) { [weak self] in
             self?.showTerms()
         }
-        addAgreementHighlight("隐私政策", to: text) { [weak self] in
+        let addedPrivacy = addAgreementHighlight(privacy, to: text) { [weak self] in
             self?.showPrivacy()
         }
+        assert(addedTerms && addedPrivacy, "Localized agreement body must contain both document names")
 
         let label = YYLabel()
         label.accessibilityIdentifier = "launch.agreement.copy"
@@ -266,12 +278,16 @@ final class LaunchViewController: UIViewController {
         label.isAccessibilityElement = true
         label.accessibilityLabel = message
         label.accessibilityCustomActions = [
-            UIAccessibilityCustomAction(name: "打开用户协议") { [weak self] _ in
+            UIAccessibilityCustomAction(
+                name: L10n.text("launch.agreement.open_terms", bundle: localizationBundle)
+            ) { [weak self] _ in
                 guard let self else { return false }
                 self.showTerms()
                 return true
             },
-            UIAccessibilityCustomAction(name: "打开隐私政策") { [weak self] _ in
+            UIAccessibilityCustomAction(
+                name: L10n.text("launch.agreement.open_privacy", bundle: localizationBundle)
+            ) { [weak self] _ in
                 guard let self else { return false }
                 self.showPrivacy()
                 return true
@@ -284,9 +300,9 @@ final class LaunchViewController: UIViewController {
         _ title: String,
         to text: NSMutableAttributedString,
         action: @escaping () -> Void
-    ) {
+    ) -> Bool {
         let range = (text.string as NSString).range(of: title)
-        guard range.location != NSNotFound else { return }
+        guard range.location != NSNotFound else { return false }
 
         text.addAttributes(
             [
@@ -299,6 +315,7 @@ final class LaunchViewController: UIViewController {
         highlight.setColor(AppTheme.accentForeground)
         highlight.tapAction = { _, _, _, _ in action() }
         text.yy_setTextHighlight(highlight, range: range)
+        return true
     }
 
     @objc private func acceptAgreement() {
@@ -310,20 +327,28 @@ final class LaunchViewController: UIViewController {
 
     @objc private func declineAgreement() {
         let alert = UIAlertController(
-            title: "需要同意后继续",
-            message: "请阅读并同意用户协议和隐私政策后继续使用 IsleWhispers。",
+            title: L10n.text("launch.agreement.required.title", bundle: localizationBundle),
+            message: L10n.text("launch.agreement.required.message", bundle: localizationBundle),
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "知道了", style: .default))
+        alert.addAction(
+            UIAlertAction(title: L10n.text("common.ok", bundle: localizationBundle), style: .default)
+        )
         present(alert, animated: false)
     }
 
     @objc private func showTerms() {
-        open(links.termsOfUseURL, title: "用户协议")
+        open(
+            links.termsOfUseURL,
+            title: L10n.text("launch.agreement.terms", bundle: localizationBundle)
+        )
     }
 
     @objc private func showPrivacy() {
-        open(links.privacyPolicyURL, title: "隐私政策")
+        open(
+            links.privacyPolicyURL,
+            title: L10n.text("launch.agreement.privacy", bundle: localizationBundle)
+        )
     }
 
     private func open(_ url: URL?, title: String) {
@@ -332,11 +357,17 @@ final class LaunchViewController: UIViewController {
                 unavailableHandler(title)
             } else {
                 let alert = UIAlertController(
-                    title: "内容准备中",
-                    message: "\(title)将在正式发布前补充。",
+                    title: L10n.text("common.content_unavailable.title", bundle: localizationBundle),
+                    message: L10n.format(
+                        "common.content_unavailable.message.format",
+                        bundle: localizationBundle,
+                        title
+                    ),
                     preferredStyle: .alert
                 )
-                alert.addAction(UIAlertAction(title: "知道了", style: .default))
+                alert.addAction(
+                    UIAlertAction(title: L10n.text("common.ok", bundle: localizationBundle), style: .default)
+                )
                 present(alert, animated: true)
             }
             return
