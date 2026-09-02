@@ -8,7 +8,7 @@ final class SoundLibraryViewControllerTests: XCTestCase {
         let controller = SoundLibraryViewController(selectedSoundID: Sound.catalog[2].id)
         controller.loadViewIfNeeded()
 
-        XCTAssertEqual(controller.sectionTitles, ["自然", "生活", "氛围"])
+        XCTAssertEqual(controller.sectionTitles, ["nature", "life", "atmosphere"])
         XCTAssertEqual(controller.sectionItemCounts, [7, 5, 3])
         XCTAssertEqual(controller.sectionItemCounts.reduce(0, +), 15)
     }

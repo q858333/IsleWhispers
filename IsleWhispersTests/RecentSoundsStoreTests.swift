@@ -63,4 +63,18 @@ final class RecentSoundsStoreTests: XCTestCase {
         XCTAssertEqual(store.recentSounds.map(\.id), expectedIDs)
         XCTAssertEqual(defaults.stringArray(forKey: RecentSoundsStore.defaultsKey), expectedIDs)
     }
+
+    func testPersistedRainIdentifierResolvesToLocalizedMetadataWithoutChangingIdentity() throws {
+        let suite = "RecentSoundsStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(["2_sound_rain"], forKey: RecentSoundsStore.defaultsKey)
+
+        let rain = try XCTUnwrap(RecentSoundsStore(defaults: defaults).recentSounds.first)
+
+        XCTAssertEqual(rain.id, "2_sound_rain")
+        XCTAssertEqual(rain.title(bundle: try LocalizationTestSupport.bundle("en")), "Rain")
+        XCTAssertEqual(rain.title(bundle: try LocalizationTestSupport.bundle("zh-Hans")), "雨声")
+        XCTAssertEqual(rain.title(bundle: try LocalizationTestSupport.bundle("zh-Hant")), "雨聲")
+    }
 }
