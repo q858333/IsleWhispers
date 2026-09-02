@@ -10,17 +10,22 @@ final class SleepTimerView: UIView {
 
     var onSelect: ((SleepTimerOption) -> Void)?
 
-    private let options: [(SleepTimerOption, String)] = [
-        (.unlimited, "不限"),
-        (.minutes15, "15 分钟"),
-        (.minutes30, "30 分钟"),
-        (.minutes60, "60 分钟")
-    ]
+    private let localizationBundle: Bundle
     private var buttons = [SleepTimerOption: UIButton]()
     private var stackView: UIStackView?
     private var layoutStyle: LayoutStyle?
 
-    override init(frame: CGRect = .zero) {
+    private var options: [(SleepTimerOption, String)] {
+        [
+            (.unlimited, L10n.text("timer.option.unlimited", bundle: localizationBundle)),
+            (.minutes15, L10n.text("timer.option.minutes15", bundle: localizationBundle)),
+            (.minutes30, L10n.text("timer.option.minutes30", bundle: localizationBundle)),
+            (.minutes60, L10n.text("timer.option.minutes60", bundle: localizationBundle))
+        ]
+    }
+
+    init(frame: CGRect = .zero, localizationBundle: Bundle = .main) {
+        self.localizationBundle = localizationBundle
         super.init(frame: frame)
         setupViews()
     }
@@ -52,7 +57,11 @@ final class SleepTimerView: UIView {
             button.setTitleColor(AppTheme.foreground, for: .normal)
             button.backgroundColor = AppTheme.surface
             button.applyRoundedCorners(radius: AppTheme.controlSize / 2)
-            button.accessibilityLabel = "睡眠定时：\(title)"
+            button.accessibilityLabel = L10n.format(
+                "timer.accessibility.option.format",
+                bundle: localizationBundle,
+                title
+            )
             button.accessibilityTraits = .button
             button.addTarget(self, action: #selector(didTapOption(_:)), for: .touchUpInside)
             buttons[option] = button

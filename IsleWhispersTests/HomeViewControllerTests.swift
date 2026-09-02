@@ -146,6 +146,8 @@ final class HomeViewControllerTests: XCTestCase {
             context.controller.presentedViewController as? FocusPlaybackViewController
         )
         XCTAssertEqual(focus.modalPresentationStyle, .fullScreen)
+        focus.loadViewIfNeeded()
+        XCTAssertNotNil(findButton(label: "暂停播放", in: focus.view))
     }
 
     @MainActor
@@ -373,19 +375,63 @@ final class HomeViewControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testSleepTimerControlUpdatesPlayerService() throws {
-        let context = makeHomeContext(
-            localizationBundle: try LocalizationTestSupport.bundle("zh-Hans")
-        )
-        defer { context.cleanup() }
-        context.controller.loadViewIfNeeded()
-        let timerButton = try XCTUnwrap(
-            findButton(label: "睡眠定时：15 分钟", in: context.controller.view)
-        )
+    func testHomePassesInjectedBundleToSleepTimerAndFocusPage() throws {
+        let cases = [
+            (
+                "en",
+                [
+                    "Sleep timer: No Limit",
+                    "Sleep timer: 15 Minutes",
+                    "Sleep timer: 30 Minutes",
+                    "Sleep timer: 60 Minutes"
+                ],
+                "Play and Open Player",
+                "Pause Playback"
+            ),
+            (
+                "zh-Hans",
+                ["睡眠定时：不限时", "睡眠定时：15 分钟", "睡眠定时：30 分钟", "睡眠定时：60 分钟"],
+                "开始播放并打开播放页",
+                "暂停播放"
+            ),
+            (
+                "zh-Hant",
+                ["睡眠計時：不限時", "睡眠計時：15 分鐘", "睡眠計時：30 分鐘", "睡眠計時：60 分鐘"],
+                "開始播放並開啟播放頁",
+                "暫停播放"
+            )
+        ]
 
-        timerButton.sendActions(for: .touchUpInside)
+        for (language, timerLabels, playLabel, pauseLabel) in cases {
+            let context = makeHomeContext(
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            defer { context.cleanup() }
+            let window = UIWindow(
+                frame: CGRect(origin: .zero, size: CGSize(width: 390, height: 844))
+            )
+            window.rootViewController = context.controller
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true }
+            layout(context.controller, size: window.bounds.size)
+            for timerLabel in timerLabels {
+                XCTAssertNotNil(findButton(label: timerLabel, in: context.controller.view))
+            }
+            let timerButton = try XCTUnwrap(findButton(label: timerLabels[1], in: context.controller.view))
 
-        XCTAssertEqual(context.service.sleepTimerOption, .minutes15)
+            timerButton.sendActions(for: .touchUpInside)
+
+            XCTAssertEqual(context.service.sleepTimerOption, .minutes15)
+            let play = try XCTUnwrap(
+                findButton(label: playLabel, in: context.controller.view)
+            )
+            play.sendActions(for: .touchUpInside)
+            let focus = try XCTUnwrap(
+                context.controller.presentedViewController as? FocusPlaybackViewController
+            )
+            focus.loadViewIfNeeded()
+            XCTAssertNotNil(findButton(label: pauseLabel, in: focus.view))
+        }
     }
 
     @MainActor

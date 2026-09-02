@@ -2,17 +2,19 @@ import SnapKit
 import UIKit
 
 final class FocusPlaybackViewController: UIViewController {
-    private static let readyStatus = "准备就绪"
     private static let normalOverlayAlpha: CGFloat = 0.24
     private static let highContrastOverlayAlpha: CGFloat = 0.38
 
     private let playerService: AudioPlayerService
+    private let localizationBundle: Bundle
     private let onSelectSound: (Int) -> Void
     private let backgroundImageView = UIImageView()
     private let blurView = UIVisualEffectView(
         effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
     )
     private let overlayView = UIView()
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
     private let titleLabel = UILabel()
     private let soundPickerButton = UIButton(type: .system)
     private let countdownButton = UIButton(type: .system)
@@ -25,8 +27,13 @@ final class FocusPlaybackViewController: UIViewController {
     private var displayedBackgroundResource: String?
     private var isVisible = false
 
-    init(playerService: AudioPlayerService, onSelectSound: @escaping (Int) -> Void) {
+    init(
+        playerService: AudioPlayerService,
+        localizationBundle: Bundle = .main,
+        onSelectSound: @escaping (Int) -> Void
+    ) {
         self.playerService = playerService
+        self.localizationBundle = localizationBundle
         self.onSelectSound = onSelectSound
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
@@ -126,8 +133,14 @@ final class FocusPlaybackViewController: UIViewController {
             ),
             for: .normal
         )
-        soundPickerButton.accessibilityLabel = "切换声音"
-        soundPickerButton.accessibilityHint = "打开声音选择"
+        soundPickerButton.accessibilityLabel = L10n.text(
+            "focus.sound_picker.label",
+            bundle: localizationBundle
+        )
+        soundPickerButton.accessibilityHint = L10n.text(
+            "focus.sound_picker.hint",
+            bundle: localizationBundle
+        )
         soundPickerButton.accessibilityIdentifier = "focusSoundPicker"
     }
 
@@ -138,7 +151,10 @@ final class FocusPlaybackViewController: UIViewController {
         countdownButton.titleLabel?.adjustsFontForContentSizeCategory = true
         countdownButton.titleLabel?.accessibilityIdentifier = "focusCountdown"
         countdownButton.accessibilityIdentifier = "focusCountdown"
-        countdownButton.accessibilityLabel = "设置倒计时"
+        countdownButton.accessibilityLabel = L10n.text(
+            "focus.countdown.label",
+            bundle: localizationBundle
+        )
         countdownButton.contentHorizontalAlignment = .center
 
         configureCircularButton(primaryControlButton, diameter: 72)
@@ -157,7 +173,8 @@ final class FocusPlaybackViewController: UIViewController {
             ),
             for: .normal
         )
-        closeButton.accessibilityLabel = "关闭播放页"
+        closeButton.accessibilityLabel = L10n.text("focus.close", bundle: localizationBundle)
+        closeButton.accessibilityIdentifier = "focusClose"
 
         statusLabel.font = AppTheme.font(.footnote, weight: .semibold)
         statusLabel.textColor = UIColor.systemRed.withAlphaComponent(0.96)
@@ -167,14 +184,24 @@ final class FocusPlaybackViewController: UIViewController {
         statusLabel.accessibilityIdentifier = "focusStatus"
         statusLabel.accessibilityTraits = .updatesFrequently
 
-        retryButton.setTitle("重试", for: .normal)
+        retryButton.setTitle(
+            L10n.text("common.retry", bundle: localizationBundle),
+            for: .normal
+        )
         retryButton.setTitleColor(.white, for: .normal)
         retryButton.titleLabel?.font = AppTheme.font(.footnote, weight: .semibold)
         retryButton.titleLabel?.adjustsFontForContentSizeCategory = true
         retryButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.82)
         retryButton.applyRoundedCorners(radius: 20)
-        retryButton.accessibilityLabel = "重试播放"
-        retryButton.accessibilityHint = "重新载入当前声音"
+        retryButton.accessibilityLabel = L10n.text(
+            "focus.retry.label",
+            bundle: localizationBundle
+        )
+        retryButton.accessibilityHint = L10n.text(
+            "home.retry.hint",
+            bundle: localizationBundle
+        )
+        retryButton.accessibilityIdentifier = "focusRetry"
 
         statusStack.axis = .vertical
         statusStack.alignment = .center
@@ -202,39 +229,48 @@ final class FocusPlaybackViewController: UIViewController {
             }
         }
 
-        view.addSubview(titleLabel)
-        view.addSubview(soundPickerButton)
-        view.addSubview(statusStack)
-        view.addSubview(countdownButton)
-        view.addSubview(primaryControlButton)
-        view.addSubview(closeButton)
+        scrollView.alwaysBounceVertical = true
+        view.addSubview(scrollView)
+        scrollView.addSubview(contentView)
+        [titleLabel, soundPickerButton, statusStack, countdownButton, primaryControlButton, closeButton]
+            .forEach(contentView.addSubview)
+
+        scrollView.snp.makeConstraints { make in
+            make.edges.equalTo(view.safeAreaLayoutGuide)
+        }
+        contentView.snp.makeConstraints { make in
+            make.edges.equalTo(scrollView.contentLayoutGuide)
+            make.width.equalTo(scrollView.frameLayoutGuide)
+            make.height.greaterThanOrEqualTo(scrollView.frameLayoutGuide)
+        }
 
         soundPickerButton.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(16)
-            make.trailing.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.top.equalToSuperview().offset(16)
+            make.trailing.equalToSuperview().inset(20)
         }
         titleLabel.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
-            make.leading.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.top.equalToSuperview().offset(20)
+            make.leading.equalToSuperview().inset(20)
             make.trailing.lessThanOrEqualTo(soundPickerButton.snp.leading).offset(-12)
-            make.bottom.lessThanOrEqualTo(soundPickerButton.snp.bottom)
         }
 
         primaryControlButton.snp.makeConstraints { make in
             make.centerX.equalToSuperview()
-            make.bottom.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.bottom.equalToSuperview().inset(20)
         }
         closeButton.snp.makeConstraints { make in
-            make.trailing.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.trailing.equalToSuperview().inset(20)
             make.centerY.equalTo(primaryControlButton)
         }
         countdownButton.snp.makeConstraints { make in
-            make.leading.trailing.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.leading.trailing.equalToSuperview().inset(20)
             make.bottom.equalTo(primaryControlButton.snp.top).offset(-16)
             make.height.greaterThanOrEqualTo(64)
         }
         statusStack.snp.makeConstraints { make in
-            make.leading.trailing.equalTo(view.safeAreaLayoutGuide).inset(20)
+            make.leading.trailing.equalToSuperview().inset(20)
+            make.top.greaterThanOrEqualTo(titleLabel.snp.bottom).offset(24)
+            make.top.greaterThanOrEqualTo(soundPickerButton.snp.bottom).offset(24)
             make.bottom.equalTo(countdownButton.snp.top).offset(-12)
         }
         retryButton.snp.makeConstraints { make in
@@ -280,14 +316,22 @@ final class FocusPlaybackViewController: UIViewController {
 
     private func render() {
         let sound = playerService.currentSound
-        titleLabel.text = sound.title
-        soundPickerButton.accessibilityLabel = "切换声音，当前\(sound.title)"
+        let soundTitle = sound.title(bundle: localizationBundle)
+        titleLabel.text = soundTitle
+        soundPickerButton.accessibilityLabel = L10n.format(
+            "focus.sound_picker.current.format",
+            bundle: localizationBundle,
+            soundTitle
+        )
         updateBackground(for: sound)
         updateCountdownPresentation()
 
         let playing = playerService.isPlaying
-        let hasError = playerService.statusMessage != Self.readyStatus
-        primaryControlButton.accessibilityLabel = playing ? "暂停播放" : "继续播放"
+        let hasError = playerService.status != .ready
+        primaryControlButton.accessibilityLabel = L10n.text(
+            playing ? "focus.pause" : "focus.play",
+            bundle: localizationBundle
+        )
         primaryControlButton.setImage(
             UIImage(
                 systemName: playing ? "pause.fill" : "play.fill",
@@ -302,7 +346,9 @@ final class FocusPlaybackViewController: UIViewController {
         closeButton.isHidden = !shouldShowClose
         closeButton.accessibilityElementsHidden = !shouldShowClose
 
-        statusLabel.text = hasError ? playerService.statusMessage : nil
+        statusLabel.text = hasError
+            ? L10n.text(playerService.status.localizationKey, bundle: localizationBundle)
+            : nil
         statusStack.isHidden = !hasError
         statusLabel.isHidden = !hasError
         retryButton.isHidden = !hasError
@@ -315,25 +361,48 @@ final class FocusPlaybackViewController: UIViewController {
         countdownButton.titleLabel?.accessibilityIdentifier = "focusCountdown"
         switch playerService.sleepTimerPhase {
         case .unlimited:
-            countdownButton.accessibilityValue = "不限时"
+            countdownButton.accessibilityValue = L10n.text(
+                "focus.countdown.unlimited",
+                bundle: localizationBundle
+            )
         case .running, .paused:
-            countdownButton.accessibilityValue = "剩余 \(countdownAccessibilityDuration())"
+            countdownButton.accessibilityValue = L10n.format(
+                "focus.countdown.remaining.format",
+                bundle: localizationBundle,
+                countdownAccessibilityDuration()
+            )
         case .expired:
-            countdownButton.accessibilityValue = "倒计时已结束"
+            countdownButton.accessibilityValue = L10n.text(
+                "focus.countdown.ended",
+                bundle: localizationBundle
+            )
         }
     }
 
     private func countdownAccessibilityDuration() -> String {
-        let totalSeconds = Int(ceil(max(playerService.sleepTimerRemaining ?? 0, 0)))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        if seconds == 0 {
-            return "\(minutes) 分钟"
+        let seconds = max(Int(ceil(playerService.sleepTimerRemaining ?? 0)), 0)
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if remainder == 0 {
+            return L10n.plural(
+                "timer.duration.minutes",
+                count: minutes,
+                bundle: localizationBundle
+            )
         }
         if minutes == 0 {
-            return "\(seconds) 秒"
+            return L10n.plural(
+                "timer.duration.seconds",
+                count: remainder,
+                bundle: localizationBundle
+            )
         }
-        return "\(minutes) 分 \(seconds) 秒"
+        return L10n.format(
+            "timer.duration.minutes_seconds.format",
+            bundle: localizationBundle,
+            minutes,
+            remainder
+        )
     }
 
     private func updateBackground(for sound: Sound) {
@@ -384,7 +453,10 @@ final class FocusPlaybackViewController: UIViewController {
 
     @objc private func didTapSoundPicker() {
         guard presentedViewController == nil else { return }
-        let library = SoundLibraryViewController(selectedSoundID: playerService.currentSound.id)
+        let library = SoundLibraryViewController(
+            selectedSoundID: playerService.currentSound.id,
+            localizationBundle: localizationBundle
+        )
         let navigation = UINavigationController(rootViewController: library)
         library.navigationItem.rightBarButtonItem = UIBarButtonItem(
             systemItem: .close,
@@ -406,21 +478,26 @@ final class FocusPlaybackViewController: UIViewController {
 
     @objc private func didTapCountdown() {
         let sheet = UIAlertController(
-            title: "设置倒计时",
+            title: L10n.text("focus.timer.sheet.title", bundle: localizationBundle),
             message: nil,
             preferredStyle: .actionSheet
         )
         [
-            ("不限时", SleepTimerOption.unlimited),
-            ("15 分钟", .minutes15),
-            ("30 分钟", .minutes30),
-            ("60 分钟", .minutes60)
+            (L10n.text("timer.option.unlimited", bundle: localizationBundle), SleepTimerOption.unlimited),
+            (L10n.text("timer.option.minutes15", bundle: localizationBundle), .minutes15),
+            (L10n.text("timer.option.minutes30", bundle: localizationBundle), .minutes30),
+            (L10n.text("timer.option.minutes60", bundle: localizationBundle), .minutes60)
         ].forEach { title, option in
             sheet.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
                 self?.selectTimer(option)
             })
         }
-        sheet.addAction(UIAlertAction(title: "取消", style: .cancel))
+        sheet.addAction(
+            UIAlertAction(
+                title: L10n.text("common.cancel", bundle: localizationBundle),
+                style: .cancel
+            )
+        )
         if let popover = sheet.popoverPresentationController {
             popover.sourceView = countdownButton
             popover.sourceRect = countdownButton.bounds

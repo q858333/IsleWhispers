@@ -31,7 +31,7 @@ final class HomeViewController: UIViewController {
     private let controlsView = UIView()
     private let pageControl = UIPageControl()
     private let playPauseButton = UIButton(type: .system)
-    private let sleepTimerView = SleepTimerView()
+    private let sleepTimerView: SleepTimerView
     private let statusLabel = UILabel()
     private let retryButton = UIButton(type: .system)
     private let statusStack = UIStackView()
@@ -44,6 +44,7 @@ final class HomeViewController: UIViewController {
         self.playerService = playerService
         self.recentStore = recentStore
         self.localizationBundle = localizationBundle
+        sleepTimerView = SleepTimerView(localizationBundle: localizationBundle)
         displayedSoundIndex = playerService.selectedIndex
         coordinatedRecentSelectionIndex = playerService.selectedIndex
         carousel = InfiniteSoundCarousel(
@@ -543,6 +544,7 @@ final class HomeViewController: UIViewController {
 
         let controller = FocusPlaybackViewController(
             playerService: playerService,
+            localizationBundle: localizationBundle,
             onSelectSound: { [weak self] index in
                 self?.selectAndPlaySound(at: index, animated: false)
             }
