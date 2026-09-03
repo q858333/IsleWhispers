@@ -261,6 +261,56 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(declineButton.bounds.height, 44)
     }
 
+    func testEnglishLaunchCopyFitsAt320By568WithAccessibilityText() throws {
+        let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let launch = LaunchViewController(
+            agreementDefaults: defaults,
+            localizationBundle: try LocalizationTestSupport.bundle("en"),
+            scheduleRoute: { _ in },
+            onContinue: {}
+        )
+        let parent = UIViewController()
+        let accessibilityTraits = UITraitCollection(
+            preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 568))
+        window.rootViewController = parent
+        window.makeKeyAndVisible()
+        parent.addChild(launch)
+        parent.setOverrideTraitCollection(accessibilityTraits, forChild: launch)
+        accessibilityTraits.performAsCurrent {
+            parent.view.addSubview(launch.view)
+        }
+        launch.view.frame = parent.view.bounds
+        launch.didMove(toParent: parent)
+        launch.view.layoutIfNeeded()
+
+        let brandTitle = try XCTUnwrap(view("launch.title", in: launch.view) as? UILabel)
+        let subtitle = try XCTUnwrap(view("launch.subtitle", in: launch.view) as? UILabel)
+        let acceptButton = try XCTUnwrap(view("launch.agreement.accept", in: launch.view) as? UIButton)
+        let declineButton = try XCTUnwrap(view("launch.agreement.decline", in: launch.view) as? UIButton)
+        let scrollView = try XCTUnwrap(scrollView(in: launch.view))
+
+        for label in [brandTitle, subtitle, try XCTUnwrap(acceptButton.titleLabel), try XCTUnwrap(declineButton.titleLabel)] {
+            assertMultilineTextFits(label)
+        }
+        for label in [brandTitle, subtitle] {
+            let frame = label.convert(label.bounds, to: launch.view)
+            XCTAssertGreaterThanOrEqual(frame.minX, launch.view.safeAreaLayoutGuide.layoutFrame.minX)
+            XCTAssertLessThanOrEqual(frame.maxX, launch.view.safeAreaLayoutGuide.layoutFrame.maxX)
+        }
+
+        scrollView.contentOffset = CGPoint(
+            x: 0,
+            y: max(0, scrollView.contentSize.height - scrollView.bounds.height)
+        )
+        scrollView.layoutIfNeeded()
+        let acceptFrame = acceptButton.convert(acceptButton.bounds, to: scrollView)
+        XCTAssertLessThanOrEqual(acceptFrame.maxY, scrollView.bounds.maxY)
+    }
+
     func testAgreementCopyAndActionsAreLocalizedInAllThreeLanguages() throws {
         let expectations = [
             ("en", "Terms of Use", "Privacy Policy"),
@@ -575,6 +625,8 @@ private func assertAgreementAction(
         let attributedText = try XCTUnwrap(copy.attributedText)
         let title = L10n.text(document.localizationKey)
         let range = (attributedText.string as NSString).range(of: title)
+        XCTAssertNotEqual(range.location, NSNotFound, title)
+        guard range.location != NSNotFound else { return }
         let highlightKey = NSAttributedString.Key(rawValue: "YYTextHighlight")
         let highlight = try XCTUnwrap(
             attributedText.attribute(highlightKey, at: range.location, effectiveRange: nil)
@@ -594,4 +646,20 @@ private func assertAgreementAction(
         unavailableTitles,
         expectsSafari ? [] : [L10n.text(document.localizationKey)]
     )
+}
+
+@MainActor
+private func assertMultilineTextFits(
+    _ label: UILabel,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) {
+    XCTAssertEqual(label.numberOfLines, 0, file: file, line: line)
+    XCTAssertEqual(label.textAlignment, .center, file: file, line: line)
+    XCTAssertGreaterThan(label.bounds.width, 0, file: file, line: line)
+    let fittingSize = label.sizeThatFits(
+        CGSize(width: label.bounds.width, height: CGFloat.greatestFiniteMagnitude)
+    )
+    XCTAssertLessThanOrEqual(fittingSize.width, label.bounds.width + 0.5, file: file, line: line)
+    XCTAssertLessThanOrEqual(fittingSize.height, label.bounds.height + 0.5, file: file, line: line)
 }

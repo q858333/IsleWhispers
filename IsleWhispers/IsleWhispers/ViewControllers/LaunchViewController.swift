@@ -98,6 +98,8 @@ final class LaunchViewController: UIViewController {
         titleLabel.textColor = AppTheme.accentForeground
         titleLabel.font = AppTheme.font(.title1, weight: .bold)
         titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.numberOfLines = 0
+        titleLabel.lineBreakMode = .byWordWrapping
 
         let subtitleLabel = UILabel()
         subtitleLabel.accessibilityIdentifier = "launch.subtitle"
@@ -106,6 +108,8 @@ final class LaunchViewController: UIViewController {
         subtitleLabel.textColor = AppTheme.accentForeground.withAlphaComponent(0.72)
         subtitleLabel.font = AppTheme.font(.body)
         subtitleLabel.adjustsFontForContentSizeCategory = true
+        subtitleLabel.numberOfLines = 0
+        subtitleLabel.lineBreakMode = .byWordWrapping
 
         let stackView = UIStackView(arrangedSubviews: [logoView, titleLabel, subtitleLabel])
         stackView.axis = .vertical
@@ -119,8 +123,14 @@ final class LaunchViewController: UIViewController {
         }
         stackView.snp.makeConstraints { make in
             make.center.equalToSuperview()
-            make.leading.greaterThanOrEqualTo(view.safeAreaLayoutGuide).offset(24)
-            make.trailing.lessThanOrEqualTo(view.safeAreaLayoutGuide).offset(-24)
+            make.leading.equalTo(view.safeAreaLayoutGuide).offset(24)
+            make.trailing.equalTo(view.safeAreaLayoutGuide).offset(-24)
+        }
+        titleLabel.snp.makeConstraints { make in
+            make.width.lessThanOrEqualToSuperview()
+        }
+        subtitleLabel.snp.makeConstraints { make in
+            make.width.lessThanOrEqualToSuperview()
         }
     }
 
@@ -165,6 +175,11 @@ final class LaunchViewController: UIViewController {
         )
         acceptButton.titleLabel?.font = AppTheme.font(.headline, weight: .semibold)
         acceptButton.titleLabel?.adjustsFontForContentSizeCategory = true
+        acceptButton.titleLabel?.numberOfLines = 0
+        acceptButton.titleLabel?.textAlignment = .center
+        acceptButton.titleLabel?.lineBreakMode = .byWordWrapping
+        acceptButton.contentHorizontalAlignment = .center
+        acceptButton.contentVerticalAlignment = .center
         acceptButton.setTitleColor(.white, for: .normal)
         acceptButton.backgroundColor = AppTheme.accentForeground
         acceptButton.applyRoundedCorners(radius: 14)
@@ -178,6 +193,11 @@ final class LaunchViewController: UIViewController {
         )
         declineButton.titleLabel?.font = AppTheme.font(.body, weight: .semibold)
         declineButton.titleLabel?.adjustsFontForContentSizeCategory = true
+        declineButton.titleLabel?.numberOfLines = 0
+        declineButton.titleLabel?.textAlignment = .center
+        declineButton.titleLabel?.lineBreakMode = .byWordWrapping
+        declineButton.contentHorizontalAlignment = .center
+        declineButton.contentVerticalAlignment = .center
         declineButton.setTitleColor(AppTheme.accentForeground, for: .normal)
         declineButton.backgroundColor = AppTheme.warmCream.withAlphaComponent(0.48)
         declineButton.applyRoundedCorners(radius: 14)
