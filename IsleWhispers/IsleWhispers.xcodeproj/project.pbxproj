@@ -53,8 +53,6 @@
 		};
 		A20000000000000000000002 /* ../IsleWhispersTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = ../IsleWhispersTests;
 			sourceTree = "<group>";
 		};
@@ -235,6 +233,8 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-IsleWhispers/Pods-IsleWhispers-resources-${CONFIGURATION}-output-files.xcfilelist",
@@ -332,6 +332,7 @@
 				DEVELOPMENT_TEAM = LVZF6F7GU2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = IsleWhispers/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Isle Whispers";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -363,6 +364,7 @@
 				DEVELOPMENT_TEAM = LVZF6F7GU2;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = IsleWhispers/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Isle Whispers";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
