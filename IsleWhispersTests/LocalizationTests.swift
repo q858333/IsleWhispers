@@ -52,6 +52,44 @@ final class LocalizationTests: XCTestCase {
         assertMinutes(in: traditionalChinese, singular: "1 分鐘", plural: "2 分鐘")
     }
 
+    func testChineseStringLiteralScannerReportsFileAndLineFromFixture() {
+        let source = """
+        let label = UILabel()
+        label.text = "中文"
+        """
+
+        XCTAssertEqual(
+            chineseStringLiteralMatches(in: source, path: "Fixture.swift"),
+            ["Fixture.swift:2: \"中文\""]
+        )
+    }
+
+    func testProductionSwiftContainsNoUserFacingChineseStringLiterals() throws {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let productionRoot = repoRoot.appendingPathComponent("IsleWhispers/IsleWhispers")
+        let swiftFiles = try XCTUnwrap(
+            FileManager.default.enumerator(
+                at: productionRoot,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )?.allObjects as? [URL]
+        )
+        .filter { $0.pathExtension == "swift" }
+        .sorted { $0.path < $1.path }
+
+        let matches = try swiftFiles.flatMap { url in
+            let path = url.path.replacingOccurrences(of: repoRoot.path + "/", with: "")
+            return chineseStringLiteralMatches(
+                in: try String(contentsOf: url, encoding: .utf8),
+                path: path
+            )
+        }
+
+        XCTAssertEqual(matches, [], matches.joined(separator: "\n"))
+    }
+
     private func assertMinutes(in bundle: Bundle, singular: String, plural: String) {
         XCTAssertEqual(L10n.plural("timer.duration.minutes", count: 1, bundle: bundle), singular)
         XCTAssertEqual(L10n.plural("timer.duration.minutes", count: 2, bundle: bundle), plural)
@@ -108,6 +146,98 @@ private func localizationEntry(_ value: Any?, language: String) -> [String: Any]
         return nil
     }
     return localizations[language] as? [String: Any]
+}
+
+private let allowedChineseStringLiterals: Set<String> = []
+
+private func chineseStringLiteralMatches(in source: String, path: String) -> [String] {
+    let characters = Array(source)
+    var matches: [String] = []
+    var index = 0
+    var line = 1
+    var blockCommentDepth = 0
+
+    func hasPrefix(_ prefix: [Character], at start: Int) -> Bool {
+        guard start + prefix.count <= characters.count else { return false }
+        return Array(characters[start..<(start + prefix.count)]) == prefix
+    }
+
+    while index < characters.count {
+        if blockCommentDepth > 0 {
+            if hasPrefix(["/", "*"], at: index) {
+                blockCommentDepth += 1
+                index += 2
+            } else if hasPrefix(["*", "/"], at: index) {
+                blockCommentDepth -= 1
+                index += 2
+            } else {
+                if characters[index] == "\n" { line += 1 }
+                index += 1
+            }
+            continue
+        }
+
+        if hasPrefix(["/", "/"], at: index) {
+            while index < characters.count, characters[index] != "\n" {
+                index += 1
+            }
+            continue
+        }
+
+        if hasPrefix(["/", "*"], at: index) {
+            blockCommentDepth = 1
+            index += 2
+            continue
+        }
+
+        var hashCount = 0
+        while index + hashCount < characters.count, characters[index + hashCount] == "#" {
+            hashCount += 1
+        }
+        let quoteIndex = index + hashCount
+        guard quoteIndex < characters.count, characters[quoteIndex] == "\"" else {
+            if characters[index] == "\n" { line += 1 }
+            index += 1
+            continue
+        }
+
+        let startIndex = index
+        let startLine = line
+        let isMultiline = hasPrefix(["\"", "\"", "\""], at: quoteIndex)
+        let quoteCount = isMultiline ? 3 : 1
+        index = quoteIndex + quoteCount
+
+        while index < characters.count {
+            if characters[index] == "\n" { line += 1 }
+
+            if hashCount == 0, characters[index] == "\\" {
+                index += 1
+                if index < characters.count {
+                    if characters[index] == "\n" { line += 1 }
+                    index += 1
+                }
+                continue
+            }
+
+            let quoteEnd = index + quoteCount
+            let hashEnd = quoteEnd + hashCount
+            let hasClosingQuotes = hasPrefix(Array(repeating: "\"", count: quoteCount), at: index)
+            let hasClosingHashes = hashEnd <= characters.count
+                && characters[quoteEnd..<hashEnd].allSatisfy { $0 == "#" }
+            if hasClosingQuotes, hasClosingHashes {
+                index = hashEnd
+                let literal = String(characters[startIndex..<index])
+                if literal.range(of: "\\p{Han}", options: .regularExpression) != nil,
+                   !allowedChineseStringLiterals.contains(literal) {
+                    matches.append("\(path):\(startLine): \(literal.replacingOccurrences(of: "\n", with: "\\n"))")
+                }
+                break
+            }
+            index += 1
+        }
+    }
+
+    return matches
 }
 
 private let catalogURL = URL(fileURLWithPath: #filePath)
