@@ -4,6 +4,90 @@ import XCTest
 
 final class RecentSoundsViewControllerTests: XCTestCase {
     @MainActor
+    func testAllLanguagesTitlesFitAndEmptyStateRemainsReachableAt320By568WithAXXXL() throws {
+        let expectations = [
+            ("en", "Recent Sounds", "Close Recent Sounds", "No Recent Sounds Yet", "Sounds you play will appear here."),
+            ("zh-Hans", "最近播放", "关闭最近播放", "还没有最近播放", "播放声音后会出现在这里"),
+            ("zh-Hant", "最近播放", "關閉最近播放", "尚無最近播放", "你播放過的聲音會顯示在這裡。")
+        ]
+
+        for (language, pageTitle, closeLabel, emptyTitle, emptyDetail) in expectations {
+            let controller = RecentSoundsViewController(
+                sounds: [],
+                selectedSoundID: Sound.catalog[2].id,
+                localizationBundle: try LocalizationTestSupport.bundle(language)
+            )
+            let host = UIViewController()
+            let traits = UITraitCollection(
+                preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge
+            )
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 568))
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true }
+
+            host.addChild(controller)
+            host.setOverrideTraitCollection(traits, forChild: controller)
+            traits.performAsCurrent {
+                host.view.addSubview(controller.view)
+            }
+            controller.view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                controller.view.topAnchor.constraint(equalTo: host.view.topAnchor),
+                controller.view.leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+                controller.view.trailingAnchor.constraint(equalTo: host.view.trailingAnchor),
+                controller.view.bottomAnchor.constraint(equalTo: host.view.bottomAnchor)
+            ])
+            controller.didMove(toParent: host)
+            layout(host, size: window.bounds.size)
+
+            XCTAssertEqual(
+                controller.traitCollection.preferredContentSizeCategory,
+                .accessibilityExtraExtraExtraLarge,
+                language
+            )
+            let titleLabel = try XCTUnwrap(findLabel(text: pageTitle, in: controller.view))
+            let closeButton = try XCTUnwrap(findButton(label: closeLabel, in: controller.view))
+            let emptyTitleLabel = try XCTUnwrap(findLabel(text: emptyTitle, in: controller.view))
+            let emptyDetailLabel = try XCTUnwrap(findLabel(text: emptyDetail, in: controller.view))
+
+            assertMultilineLabelFits(titleLabel, language: language)
+            assertMultilineLabelFits(emptyTitleLabel, language: language)
+            assertLabelFits(emptyDetailLabel, language: language)
+
+            let titleFrame = titleLabel.convert(titleLabel.bounds, to: controller.view)
+            let closeFrame = closeButton.convert(closeButton.bounds, to: controller.view)
+            XCTAssertFalse(
+                titleFrame.intersects(closeFrame),
+                "\(language) page title intersects close button"
+            )
+
+            let emptyScrollView = try XCTUnwrap(
+                ancestor(UIScrollView.self, of: emptyTitleLabel),
+                "\(language) empty state must live in a scroll view"
+            )
+            XCTAssertTrue(emptyDetailLabel.isDescendant(of: emptyScrollView), language)
+            XCTAssertTrue(emptyScrollView.alwaysBounceVertical, language)
+            XCTAssertGreaterThanOrEqual(
+                emptyScrollView.contentSize.height,
+                emptyScrollView.bounds.height,
+                language
+            )
+            emptyScrollView.contentOffset = CGPoint(
+                x: 0,
+                y: max(0, emptyScrollView.contentSize.height - emptyScrollView.bounds.height)
+            )
+            emptyScrollView.layoutIfNeeded()
+            let detailFrame = emptyDetailLabel.convert(emptyDetailLabel.bounds, to: emptyScrollView)
+            XCTAssertLessThanOrEqual(
+                detailFrame.maxY,
+                emptyScrollView.bounds.maxY + 0.5,
+                "\(language) empty-state detail is unreachable after scrolling"
+            )
+        }
+    }
+
+    @MainActor
     func testRecentPageAndCellsUseInjectedLanguageBundle() throws {
         let expectations: [(String, String, String, String, String, String, String, String)] = [
             (
@@ -129,6 +213,52 @@ final class RecentSoundsViewControllerTests: XCTestCase {
         descendants(in: root)
             .compactMap { $0 as? UIButton }
             .first { $0.accessibilityLabel == label }
+    }
+
+    private func ancestor<T: UIView>(_ type: T.Type, of view: UIView) -> T? {
+        var candidate = view.superview
+        while let current = candidate {
+            if let match = current as? T { return match }
+            candidate = current.superview
+        }
+        return nil
+    }
+
+    private func assertMultilineLabelFits(
+        _ label: UILabel,
+        language: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(label.numberOfLines, 0, language, file: file, line: line)
+        XCTAssertEqual(label.lineBreakMode, .byWordWrapping, language, file: file, line: line)
+        assertLabelFits(label, language: language, file: file, line: line)
+    }
+
+    private func assertLabelFits(
+        _ label: UILabel,
+        language: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThan(label.bounds.width, 0, language, file: file, line: line)
+        let fittingSize = label.sizeThatFits(
+            CGSize(width: label.bounds.width, height: .greatestFiniteMagnitude)
+        )
+        XCTAssertLessThanOrEqual(
+            fittingSize.width,
+            label.bounds.width + 0.5,
+            language,
+            file: file,
+            line: line
+        )
+        XCTAssertLessThanOrEqual(
+            fittingSize.height,
+            label.bounds.height + 0.5,
+            language,
+            file: file,
+            line: line
+        )
     }
 
     private func descendants(in root: UIView) -> [UIView] {

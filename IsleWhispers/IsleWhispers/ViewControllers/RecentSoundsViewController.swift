@@ -14,6 +14,8 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
     private let emptyTitleLabel = UILabel()
     private let emptyDetailLabel = UILabel()
     private let emptyStack = UIStackView()
+    private let emptyScrollView = UIScrollView()
+    private let emptyContentView = UIView()
 
     private lazy var collectionView: UICollectionView = {
         let collectionView = UICollectionView(
@@ -127,6 +129,8 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         titleLabel.font = AppTheme.font(.largeTitle, weight: .bold)
         titleLabel.textColor = .white
         titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.numberOfLines = 0
+        titleLabel.lineBreakMode = .byWordWrapping
 
         closeButton.tintColor = .white
         closeButton.backgroundColor = UIColor.white.withAlphaComponent(0.14)
@@ -169,6 +173,8 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         emptyTitleLabel.textColor = .white
         emptyTitleLabel.adjustsFontForContentSizeCategory = true
         emptyTitleLabel.textAlignment = .center
+        emptyTitleLabel.numberOfLines = 0
+        emptyTitleLabel.lineBreakMode = .byWordWrapping
 
         emptyDetailLabel.text = L10n.text("recent.empty.detail", bundle: localizationBundle)
         emptyDetailLabel.font = AppTheme.font(.body)
@@ -178,21 +184,35 @@ final class RecentSoundsViewController: UIViewController, UICollectionViewDataSo
         emptyDetailLabel.numberOfLines = 0
 
         emptyStack.axis = .vertical
-        emptyStack.alignment = .center
+        emptyStack.alignment = .fill
         emptyStack.spacing = 8
         emptyStack.addArrangedSubview(emptyTitleLabel)
         emptyStack.addArrangedSubview(emptyDetailLabel)
-        view.addSubview(emptyStack)
+        emptyScrollView.alwaysBounceVertical = true
+        view.addSubview(emptyScrollView)
+        emptyScrollView.addSubview(emptyContentView)
+        emptyContentView.addSubview(emptyStack)
+        emptyScrollView.snp.makeConstraints { make in
+            make.edges.equalTo(collectionView)
+        }
+        emptyContentView.snp.makeConstraints { make in
+            make.edges.equalTo(emptyScrollView.contentLayoutGuide)
+            make.width.equalTo(emptyScrollView.frameLayoutGuide)
+            make.height.greaterThanOrEqualTo(emptyScrollView.frameLayoutGuide)
+            make.height.equalTo(emptyScrollView.frameLayoutGuide).priority(.low)
+        }
         emptyStack.snp.makeConstraints { make in
             make.center.equalToSuperview()
-            make.leading.trailing.equalTo(view.safeAreaLayoutGuide).inset(32)
+            make.leading.trailing.equalToSuperview().inset(20)
+            make.top.greaterThanOrEqualToSuperview().offset(32)
+            make.bottom.lessThanOrEqualToSuperview().offset(-32)
         }
     }
 
     private func render() {
         let isEmpty = sounds.isEmpty
         collectionView.isHidden = isEmpty
-        emptyStack.isHidden = !isEmpty
+        emptyScrollView.isHidden = !isEmpty
     }
 
     private func makeCollectionLayout() -> UICollectionViewLayout {
