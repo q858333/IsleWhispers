@@ -13,7 +13,7 @@ final class AppConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testSystemLaunchScreenUsesBrandArtworkAndCopy() throws {
+    func testSystemLaunchScreenUsesFullBleedSharedArtwork() throws {
         let baseBundle = try XCTUnwrap(
             Bundle(path: try XCTUnwrap(Bundle.main.path(forResource: "Base", ofType: "lproj")))
         )
@@ -22,15 +22,14 @@ final class AppConfigurationTests: XCTestCase {
         )
         launch.loadViewIfNeeded()
 
-        XCTAssertNotNil(configurationView("launch.logo", in: launch.view) as? UIImageView)
-        XCTAssertEqual(
-            (configurationView("launch.title", in: launch.view) as? UILabel)?.text,
-            "IsleWhispers"
+        launch.view.layoutIfNeeded()
+        let background = try XCTUnwrap(
+            configurationView("launch.background", in: launch.view) as? UIImageView
         )
-        XCTAssertEqual(
-            (configurationView("launch.subtitle", in: launch.view) as? UILabel)?.text,
-            "Listen to nature. Be here now."
-        )
+        XCTAssertNotNil(background.image)
+        XCTAssertEqual(background.contentMode, .scaleAspectFill)
+        XCTAssertTrue(background.clipsToBounds)
+        XCTAssertEqual(background.frame, launch.view.bounds)
     }
 
     func testSimplifiedChineseLaunchScreenOverrideExists() throws {

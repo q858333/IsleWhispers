@@ -85,52 +85,16 @@ final class LaunchViewController: UIViewController {
     private func configureBrandView() {
         view.backgroundColor = AppTheme.warmCream
 
-        let logoView = UIImageView(image: UIImage(named: "logo-300"))
-        logoView.accessibilityIdentifier = "launch.logo"
-        logoView.contentMode = .scaleAspectFit
-        logoView.isAccessibilityElement = true
-        logoView.accessibilityLabel = "IsleWhispers"
+        let backgroundImageView = UIImageView(image: UIImage(named: "launch-background"))
+        backgroundImageView.accessibilityIdentifier = "launch.background"
+        backgroundImageView.accessibilityLabel = "IsleWhispers"
+        backgroundImageView.isAccessibilityElement = true
+        backgroundImageView.contentMode = .scaleAspectFill
+        backgroundImageView.clipsToBounds = true
+        view.addSubview(backgroundImageView)
 
-        let titleLabel = UILabel()
-        titleLabel.accessibilityIdentifier = "launch.title"
-        titleLabel.text = "IsleWhispers"
-        titleLabel.textAlignment = .center
-        titleLabel.textColor = AppTheme.accentForeground
-        titleLabel.font = AppTheme.font(.title1, weight: .bold)
-        titleLabel.adjustsFontForContentSizeCategory = true
-        titleLabel.numberOfLines = 0
-        titleLabel.lineBreakMode = .byWordWrapping
-
-        let subtitleLabel = UILabel()
-        subtitleLabel.accessibilityIdentifier = "launch.subtitle"
-        subtitleLabel.text = L10n.text("launch.subtitle", bundle: localizationBundle)
-        subtitleLabel.textAlignment = .center
-        subtitleLabel.textColor = AppTheme.accentForeground.withAlphaComponent(0.72)
-        subtitleLabel.font = AppTheme.font(.body)
-        subtitleLabel.adjustsFontForContentSizeCategory = true
-        subtitleLabel.numberOfLines = 0
-        subtitleLabel.lineBreakMode = .byWordWrapping
-
-        let stackView = UIStackView(arrangedSubviews: [logoView, titleLabel, subtitleLabel])
-        stackView.axis = .vertical
-        stackView.alignment = .center
-        stackView.spacing = 12
-        stackView.setCustomSpacing(22, after: logoView)
-        view.addSubview(stackView)
-
-        logoView.snp.makeConstraints { make in
-            make.size.equalTo(120)
-        }
-        stackView.snp.makeConstraints { make in
-            make.center.equalToSuperview()
-            make.leading.equalTo(view.safeAreaLayoutGuide).offset(24)
-            make.trailing.equalTo(view.safeAreaLayoutGuide).offset(-24)
-        }
-        titleLabel.snp.makeConstraints { make in
-            make.width.lessThanOrEqualToSuperview()
-        }
-        subtitleLabel.snp.makeConstraints { make in
-            make.width.lessThanOrEqualToSuperview()
+        backgroundImageView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
         }
     }
 

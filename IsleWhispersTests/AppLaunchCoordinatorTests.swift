@@ -64,7 +64,7 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         XCTAssertEqual(registrationCount, 1)
     }
 
-    func testStartShowsBrandAgreementAndDefersMainInterface() throws {
+    func testStartShowsFullBleedArtworkAgreementAndDefersMainInterface() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -84,12 +84,15 @@ final class AppLaunchCoordinatorTests: XCTestCase {
 
         let launch = try XCTUnwrap(window.rootViewController as? LaunchViewController)
         launch.loadViewIfNeeded()
-        XCTAssertNotNil(view("launch.logo", in: launch.view) as? UIImageView)
-        XCTAssertEqual((view("launch.title", in: launch.view) as? UILabel)?.text, "IsleWhispers")
-        XCTAssertEqual(
-            (view("launch.subtitle", in: launch.view) as? UILabel)?.text,
-            L10n.text("launch.subtitle")
+        launch.view.frame = window.bounds
+        launch.view.layoutIfNeeded()
+        let background = try XCTUnwrap(
+            view("launch.background", in: launch.view) as? UIImageView
         )
+        XCTAssertNotNil(background.image)
+        XCTAssertEqual(background.contentMode, .scaleAspectFill)
+        XCTAssertTrue(background.clipsToBounds)
+        XCTAssertEqual(background.frame, launch.view.bounds)
         XCTAssertNotNil(view("launch.agreement", in: launch.view))
         XCTAssertEqual(rootCreationCount, 0)
     }
@@ -261,7 +264,7 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(declineButton.bounds.height, 44)
     }
 
-    func testEnglishLaunchCopyFitsAt320By568WithAccessibilityText() throws {
+    func testEnglishAgreementFitsAt320By568WithAccessibilityTextOverFullBleedArtwork() throws {
         let suite = "AppLaunchCoordinatorTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -287,19 +290,14 @@ final class AppLaunchCoordinatorTests: XCTestCase {
         launch.didMove(toParent: parent)
         launch.view.layoutIfNeeded()
 
-        let brandTitle = try XCTUnwrap(view("launch.title", in: launch.view) as? UILabel)
-        let subtitle = try XCTUnwrap(view("launch.subtitle", in: launch.view) as? UILabel)
+        let background = try XCTUnwrap(view("launch.background", in: launch.view) as? UIImageView)
         let acceptButton = try XCTUnwrap(view("launch.agreement.accept", in: launch.view) as? UIButton)
         let declineButton = try XCTUnwrap(view("launch.agreement.decline", in: launch.view) as? UIButton)
         let scrollView = try XCTUnwrap(scrollView(in: launch.view))
 
-        for label in [brandTitle, subtitle, try XCTUnwrap(acceptButton.titleLabel), try XCTUnwrap(declineButton.titleLabel)] {
+        XCTAssertEqual(background.frame, launch.view.bounds)
+        for label in [try XCTUnwrap(acceptButton.titleLabel), try XCTUnwrap(declineButton.titleLabel)] {
             assertMultilineTextFits(label)
-        }
-        for label in [brandTitle, subtitle] {
-            let frame = label.convert(label.bounds, to: launch.view)
-            XCTAssertGreaterThanOrEqual(frame.minX, launch.view.safeAreaLayoutGuide.layoutFrame.minX)
-            XCTAssertLessThanOrEqual(frame.maxX, launch.view.safeAreaLayoutGuide.layoutFrame.maxX)
         }
 
         scrollView.contentOffset = CGPoint(
