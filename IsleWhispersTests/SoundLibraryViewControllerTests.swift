@@ -128,7 +128,7 @@ final class SoundLibraryViewControllerTests: XCTestCase {
 
         controller.selectItemForTesting(section: 1, item: 2)
 
-        XCTAssertEqual(selectedIndex, Sound.catalog.firstIndex { $0.title == "游艇" })
+        XCTAssertEqual(selectedIndex, 10)
     }
 
     @MainActor
