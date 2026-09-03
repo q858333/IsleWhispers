@@ -4,6 +4,7 @@ import UIKit
 final class FocusPlaybackViewController: UIViewController {
     private static let normalOverlayAlpha: CGFloat = 0.24
     private static let highContrastOverlayAlpha: CGFloat = 0.38
+    private static let minimumAccessibilityScrollOverflow: CGFloat = 24
 
     private let playerService: AudioPlayerService
     private let localizationBundle: Bundle
@@ -23,6 +24,7 @@ final class FocusPlaybackViewController: UIViewController {
     private let statusLabel = UILabel()
     private let retryButton = UIButton(type: .system)
     private let statusStack = UIStackView()
+    private var minimumContentHeightConstraint: Constraint?
     private var displayTimer: Timer?
     private var displayedBackgroundResource: String?
     private var isVisible = false
@@ -75,9 +77,13 @@ final class FocusPlaybackViewController: UIViewController {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        guard previousTraitCollection?.accessibilityContrast != traitCollection.accessibilityContrast
-        else { return }
-        updateContrastAppearance()
+        if previousTraitCollection?.accessibilityContrast != traitCollection.accessibilityContrast {
+            updateContrastAppearance()
+        }
+        if previousTraitCollection?.preferredContentSizeCategory
+            != traitCollection.preferredContentSizeCategory {
+            updateMinimumContentHeight()
+        }
     }
 
     var countdownTextForTesting: String {
@@ -241,7 +247,10 @@ final class FocusPlaybackViewController: UIViewController {
         contentView.snp.makeConstraints { make in
             make.edges.equalTo(scrollView.contentLayoutGuide)
             make.width.equalTo(scrollView.frameLayoutGuide)
-            make.height.greaterThanOrEqualTo(scrollView.frameLayoutGuide)
+            minimumContentHeightConstraint = make.height
+                .greaterThanOrEqualTo(scrollView.frameLayoutGuide)
+                .offset(contentHeightOverflow)
+                .constraint
         }
 
         soundPickerButton.snp.makeConstraints { make in
@@ -277,6 +286,16 @@ final class FocusPlaybackViewController: UIViewController {
             make.height.greaterThanOrEqualTo(56)
             make.width.greaterThanOrEqualTo(96)
         }
+    }
+
+    private var contentHeightOverflow: CGFloat {
+        traitCollection.preferredContentSizeCategory.isAccessibilityCategory
+            ? Self.minimumAccessibilityScrollOverflow
+            : 0
+    }
+
+    private func updateMinimumContentHeight() {
+        minimumContentHeightConstraint?.update(offset: contentHeightOverflow)
     }
 
     private func setupInteractions() {

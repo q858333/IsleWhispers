@@ -553,6 +553,17 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testAllLanguagesWorstCaseContentScrollsAt320By568WithAXXXL() throws {
+        for language in ["en", "zh-Hans", "zh-Hant"] {
+            try assertFocusLayout(
+                language: language,
+                size: CGSize(width: 320, height: 568),
+                scenario: .longestSoundTitleWithResourceError
+            )
+        }
+    }
+
+    @MainActor
     func testAllLanguagesLongestSoundTitleFitsAt390By844WithAXXXL() throws {
         for language in ["en", "zh-Hans", "zh-Hant"] {
             try assertFocusLayout(
@@ -625,21 +636,28 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
         line: UInt = #line
     ) throws {
         let context = makeFocusContext(
-            resourceBundle: scenario == .resourceError
+            resourceBundle: scenario.showsResourceError
                 ? Bundle(for: FocusPlaybackViewControllerTests.self)
                 : .main,
             localizationBundle: try LocalizationTestSupport.bundle(language)
         )
         defer { context.cleanup() }
-        if scenario == .longestSoundTitle {
+        if scenario.showsLongestSoundTitle {
             context.service.selectSound(at: 4)
-        } else {
+        }
+        if scenario.showsResourceError {
             context.service.play()
         }
         let host = UIViewController()
         host.loadViewIfNeeded()
+        let accessibilityTraits = UITraitCollection(
+            preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge
+        )
         host.addChild(context.controller)
-        host.view.addSubview(context.controller.view)
+        host.setOverrideTraitCollection(accessibilityTraits, forChild: context.controller)
+        accessibilityTraits.performAsCurrent {
+            host.view.addSubview(context.controller.view)
+        }
         context.controller.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             context.controller.view.topAnchor.constraint(equalTo: host.view.topAnchor),
@@ -648,10 +666,6 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             context.controller.view.bottomAnchor.constraint(equalTo: host.view.bottomAnchor)
         ])
         context.controller.didMove(toParent: host)
-        host.setOverrideTraitCollection(
-            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
-            forChild: context.controller
-        )
         layout(host, size: size)
 
         XCTAssertEqual(
@@ -679,7 +693,7 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             file: file,
             line: line
         )
-        if scenario == .longestSoundTitle {
+        if scenario.showsLongestSoundTitle {
             let expectedTitles = [
                 "en": "Flowing Water",
                 "zh-Hans": "水流",
@@ -702,7 +716,7 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             line: line
         )
 
-        if scenario == .resourceError {
+        if scenario.showsResourceError {
             let status = try XCTUnwrap(
                 findLabel(identifier: "focusStatus", in: context.controller.view),
                 file: file,
@@ -753,7 +767,7 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             line: line
         )
 
-        if scrollView.contentSize.height > scrollView.bounds.height + 0.5 {
+        if scenario.requiresVerticalScrolling {
             XCTAssertGreaterThan(
                 scrollView.contentSize.height,
                 scrollView.bounds.height,
@@ -766,9 +780,13 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
             )
             scrollView.layoutIfNeeded()
             let lastControl = try XCTUnwrap(
-                ["focusPrimaryControl", "focusClose"]
+                identifiers
                     .compactMap { findView(identifier: $0, in: context.controller.view) }
-                    .filter { !$0.isHidden }
+                    .filter {
+                        !$0.isHidden
+                            && $0.isAccessibilityElement
+                            && !$0.accessibilityElementsHidden
+                    }
                     .max {
                         $0.convert($0.bounds, to: scrollView).maxY
                             < $1.convert($1.bounds, to: scrollView).maxY
@@ -777,6 +795,13 @@ final class FocusPlaybackViewControllerTests: XCTestCase {
                 line: line
             )
             let lastFrame = lastControl.convert(lastControl.bounds, to: scrollView)
+            XCTAssertGreaterThanOrEqual(
+                lastFrame.minY,
+                scrollView.bounds.minY - 0.5,
+                "\(language) \(scenario) last control is clipped above the viewport at \(size)",
+                file: file,
+                line: line
+            )
             XCTAssertLessThanOrEqual(
                 lastFrame.maxY,
                 scrollView.bounds.maxY + 0.5,
@@ -960,11 +985,26 @@ private struct FocusLocalizationExpectation {
 private enum FocusLayoutScenario: CustomStringConvertible {
     case longestSoundTitle
     case resourceError
+    case longestSoundTitleWithResourceError
+
+    var showsLongestSoundTitle: Bool {
+        self == .longestSoundTitle || self == .longestSoundTitleWithResourceError
+    }
+
+    var showsResourceError: Bool {
+        self == .resourceError || self == .longestSoundTitleWithResourceError
+    }
+
+    var requiresVerticalScrolling: Bool {
+        self == .longestSoundTitleWithResourceError
+    }
 
     var description: String {
         switch self {
         case .longestSoundTitle: return "longest sound title"
         case .resourceError: return "resource error"
+        case .longestSoundTitleWithResourceError:
+            return "longest sound title with resource error"
         }
     }
 }
