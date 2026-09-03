@@ -64,6 +64,59 @@ final class LocalizationTests: XCTestCase {
         )
     }
 
+    func testChineseStringLiteralScannerFindsStringsInsideNestedInterpolation() {
+        let source = ###"""
+        let simplified = "\(render("简体"))"
+        let traditional = "\(render("繁體"))"
+        let nested = "\(render("\(value("嵌套"))"))"
+        let rawInterpolation = #"Value: \#(render("原始插值"))"#
+        """###
+
+        XCTAssertEqual(
+            chineseStringLiteralMatches(in: source, path: "Interpolation.swift"),
+            [
+                "Interpolation.swift:1: \"简体\"",
+                "Interpolation.swift:2: \"繁體\"",
+                "Interpolation.swift:3: \"嵌套\"",
+                "Interpolation.swift:4: \"原始插值\""
+            ]
+        )
+    }
+
+    func testChineseStringLiteralScannerIgnoresCommentsInsideInterpolation() {
+        let source = ###"""
+        let line = "\(value // 中文行注释
+        )"
+        let block = "\(value /* 中文外层 /* 中文内层 */ 仍是注释 */)"
+        let visible = "真实文案"
+        """###
+
+        XCTAssertEqual(
+            chineseStringLiteralMatches(in: source, path: "Comments.swift"),
+            ["Comments.swift:4: \"真实文案\""]
+        )
+    }
+
+    func testChineseStringLiteralScannerHandlesEscapedRawAndMultilineStrings() {
+        let source = ####"""
+        let escaped = "Quote: \"中文可见\""
+        let raw = #"原始中文"#
+        let multiline = """
+        多行
+        中文
+        """
+        """####
+
+        XCTAssertEqual(
+            chineseStringLiteralMatches(in: source, path: "Forms.swift"),
+            [
+                "Forms.swift:1: \"Quote: \\\"中文可见\\\"\"",
+                "Forms.swift:2: #\"原始中文\"#",
+                "Forms.swift:3: \"\"\"\\n多行\\n中文\\n\"\"\""
+            ]
+        )
+    }
+
     func testProductionSwiftContainsNoUserFacingChineseStringLiterals() throws {
         let repoRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -151,93 +204,166 @@ private func localizationEntry(_ value: Any?, language: String) -> [String: Any]
 private let allowedChineseStringLiterals: Set<String> = []
 
 private func chineseStringLiteralMatches(in source: String, path: String) -> [String] {
-    let characters = Array(source)
-    var matches: [String] = []
-    var index = 0
-    var line = 1
-    var blockCommentDepth = 0
+    var scanner = SwiftChineseStringLiteralScanner(source: source, path: path)
+    return scanner.scan()
+}
 
-    func hasPrefix(_ prefix: [Character], at start: Int) -> Bool {
-        guard start + prefix.count <= characters.count else { return false }
-        return Array(characters[start..<(start + prefix.count)]) == prefix
+private struct SwiftChineseStringLiteralScanner {
+    private struct Match {
+        let offset: Int
+        let line: Int
+        let literal: String
     }
 
-    while index < characters.count {
-        if blockCommentDepth > 0 {
+    private let characters: [Character]
+    private let path: String
+    private var index = 0
+    private var line = 1
+    private var matches: [Match] = []
+
+    init(source: String, path: String) {
+        characters = Array(source)
+        self.path = path
+    }
+
+    mutating func scan() -> [String] {
+        scanCode(untilClosingParenthesis: false)
+        return matches.sorted { $0.offset < $1.offset }.map { match in
+            let literal = match.literal.replacingOccurrences(of: "\n", with: "\\n")
+            return "\(path):\(match.line): \(literal)"
+        }
+    }
+
+    private mutating func scanCode(untilClosingParenthesis: Bool) {
+        var parenthesisDepth = untilClosingParenthesis ? 1 : 0
+
+        while index < characters.count {
+            if hasPrefix(["/", "/"], at: index) {
+                skipLineComment()
+                continue
+            }
             if hasPrefix(["/", "*"], at: index) {
-                blockCommentDepth += 1
-                index += 2
-            } else if hasPrefix(["*", "/"], at: index) {
-                blockCommentDepth -= 1
-                index += 2
-            } else {
-                if characters[index] == "\n" { line += 1 }
-                index += 1
+                skipBlockComment()
+                continue
             }
-            continue
-        }
-
-        if hasPrefix(["/", "/"], at: index) {
-            while index < characters.count, characters[index] != "\n" {
-                index += 1
+            if parseStringIfPresent() {
+                continue
             }
-            continue
-        }
 
-        if hasPrefix(["/", "*"], at: index) {
-            blockCommentDepth = 1
-            index += 2
-            continue
+            if untilClosingParenthesis, characters[index] == "(" {
+                parenthesisDepth += 1
+                index += 1
+                continue
+            }
+            if untilClosingParenthesis, characters[index] == ")" {
+                parenthesisDepth -= 1
+                index += 1
+                if parenthesisDepth == 0 { return }
+                continue
+            }
+            advance()
         }
+    }
 
+    private mutating func parseStringIfPresent() -> Bool {
+        let startIndex = index
         var hashCount = 0
         while index + hashCount < characters.count, characters[index + hashCount] == "#" {
             hashCount += 1
         }
         let quoteIndex = index + hashCount
         guard quoteIndex < characters.count, characters[quoteIndex] == "\"" else {
-            if characters[index] == "\n" { line += 1 }
-            index += 1
-            continue
+            return false
         }
 
-        let startIndex = index
         let startLine = line
-        let isMultiline = hasPrefix(["\"", "\"", "\""], at: quoteIndex)
-        let quoteCount = isMultiline ? 3 : 1
+        let quoteCount = hasPrefix(["\"", "\"", "\""], at: quoteIndex) ? 3 : 1
         index = quoteIndex + quoteCount
+        var containsChinese = false
 
         while index < characters.count {
-            if characters[index] == "\n" { line += 1 }
-
-            if hashCount == 0, characters[index] == "\\" {
-                index += 1
-                if index < characters.count {
-                    if characters[index] == "\n" { line += 1 }
-                    index += 1
+            if isClosingDelimiter(quoteCount: quoteCount, hashCount: hashCount) {
+                index += quoteCount + hashCount
+                let literal = String(characters[startIndex..<index])
+                if containsChinese, !allowedChineseStringLiterals.contains(literal) {
+                    matches.append(Match(offset: startIndex, line: startLine, literal: literal))
                 }
+                return true
+            }
+
+            if let interpolationLength = interpolationPrefixLength(hashCount: hashCount) {
+                index += interpolationLength
+                scanCode(untilClosingParenthesis: true)
                 continue
             }
 
-            let quoteEnd = index + quoteCount
-            let hashEnd = quoteEnd + hashCount
-            let hasClosingQuotes = hasPrefix(Array(repeating: "\"", count: quoteCount), at: index)
-            let hasClosingHashes = hashEnd <= characters.count
-                && characters[quoteEnd..<hashEnd].allSatisfy { $0 == "#" }
-            if hasClosingQuotes, hasClosingHashes {
-                index = hashEnd
-                let literal = String(characters[startIndex..<index])
-                if literal.range(of: "\\p{Han}", options: .regularExpression) != nil,
-                   !allowedChineseStringLiterals.contains(literal) {
-                    matches.append("\(path):\(startLine): \(literal.replacingOccurrences(of: "\n", with: "\\n"))")
-                }
-                break
+            if hashCount == 0, characters[index] == "\\" {
+                index += 1
+                if index < characters.count { advance() }
+                continue
             }
+
+            if String(characters[index]).range(of: "\\p{Han}", options: .regularExpression) != nil {
+                containsChinese = true
+            }
+            advance()
+        }
+
+        return true
+    }
+
+    private func isClosingDelimiter(quoteCount: Int, hashCount: Int) -> Bool {
+        guard hasPrefix(Array(repeating: "\"", count: quoteCount), at: index) else {
+            return false
+        }
+        let hashStart = index + quoteCount
+        return hasPrefix(Array(repeating: "#", count: hashCount), at: hashStart)
+    }
+
+    private func interpolationPrefixLength(hashCount: Int) -> Int? {
+        guard index < characters.count, characters[index] == "\\" else { return nil }
+        let hashStart = index + 1
+        guard hasPrefix(Array(repeating: "#", count: hashCount), at: hashStart) else {
+            return nil
+        }
+        let parenthesisIndex = hashStart + hashCount
+        guard parenthesisIndex < characters.count, characters[parenthesisIndex] == "(" else {
+            return nil
+        }
+        return hashCount + 2
+    }
+
+    private mutating func skipLineComment() {
+        while index < characters.count, characters[index] != "\n" {
             index += 1
         }
     }
 
-    return matches
+    private mutating func skipBlockComment() {
+        var depth = 0
+        while index < characters.count {
+            if hasPrefix(["/", "*"], at: index) {
+                depth += 1
+                index += 2
+            } else if hasPrefix(["*", "/"], at: index) {
+                depth -= 1
+                index += 2
+                if depth == 0 { return }
+            } else {
+                advance()
+            }
+        }
+    }
+
+    private mutating func advance() {
+        if characters[index] == "\n" { line += 1 }
+        index += 1
+    }
+
+    private func hasPrefix(_ prefix: [Character], at start: Int) -> Bool {
+        guard start + prefix.count <= characters.count else { return false }
+        return Array(characters[start..<(start + prefix.count)]) == prefix
+    }
 }
 
 private let catalogURL = URL(fileURLWithPath: #filePath)

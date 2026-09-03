@@ -176,3 +176,70 @@ Task 9 只应提交：
 - `docs/superpowers/reports/2026-09-02-app-localization-verification.md`
 
 最终提交 SHA 由提交完成后的 `git log -1` 记录；由于提交对象包含本报告，报告正文不能自引用尚未生成的提交 SHA。Task 9 的 ignored 实施报告会在提交后记录该 SHA。
+
+## Fix Round 1：递归解析字符串插值
+
+### 审查问题
+
+Task 9 初版扫描器在普通字符串内遇到反斜杠时无条件跳过两个字符，因此 `\(...)` 只跳过插值开头，未从字符串态切回代码态。插值表达式中的嵌套字符串可能提前结束外层字符串，raw interpolation 可能整段误报，插值内的中文注释也可能被当作外层可见文字。
+
+### RED fixtures
+
+只增加 fixtures、尚未修改 helper 时执行：
+
+```bash
+cd /Users/db/Documents/git/my/IsleWhispers/IsleWhispers/.worktrees/launch-agreement-rich-text/IsleWhispers
+xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+  -parallel-testing-enabled NO \
+  -only-testing:IsleWhispersTests/LocalizationTests \
+  -resultBundlePath /tmp/task9-fix1-red2.xcresult \
+  test CODE_SIGNING_ALLOWED=NO
+```
+
+结果：退出码 65，9 tests 中 7 passed、2 failed、0 skipped。两个失败精确证明：
+
+- 普通插值内的 `"简体"`、`"繁體"` 漏报，raw interpolation 被错误报告为整段外层 raw string，而不是内部 `"原始插值"`。
+- `// 中文行注释` 与嵌套 `/* 中文外层 /* 中文内层 */ 仍是注释 */` 被错误吞入外层字符串并报告。
+
+新增 fixtures 同时锁定嵌套插值/嵌套字符串、escaped quote、独立 raw string、raw interpolation、多行字符串，以及每个真实中文 literal 的文件名与起始行号。期望值均为手写字面量，不复用扫描器逻辑生成。
+
+### 最小修复与 GREEN
+
+没有引入 SwiftSyntax 或生产依赖。test-only `SwiftChineseStringLiteralScanner` 使用递归状态机：
+
+- 代码态解析行注释、可嵌套块注释和插值括号深度。
+- 字符串态解析普通/raw、多行 delimiter 与普通 escape。
+- 遇到 `\#*(...)` 时递归回代码态，因此会扫描插值内的嵌套字符串，但不会把插值注释算作外层字符串文字。
+- 只以字符串的非插值片段判断是否含 Han 字符；诊断按 source offset 排序并保留 literal 起始行。
+- allowlist 继续为空。
+
+执行：
+
+```bash
+cd /Users/db/Documents/git/my/IsleWhispers/IsleWhispers/.worktrees/launch-agreement-rich-text/IsleWhispers
+xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4' \
+  -parallel-testing-enabled NO \
+  -only-testing:IsleWhispersTests/LocalizationTests \
+  -resultBundlePath /tmp/task9-fix1-green.xcresult \
+  test CODE_SIGNING_ALLOWED=NO
+```
+
+结果：退出码 0，`** TEST SUCCEEDED **`；9 passed、0 failed、0 skipped。生产递归扫描仍为 0 命中。
+
+随后执行：
+
+```bash
+xcodebuild -workspace IsleWhispers.xcworkspace -scheme IsleWhispers \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath /tmp/islewhispers-localization-derived-data \
+  build CODE_SIGNING_ALLOWED=NO 2>&1 | tee /tmp/task9-fix1-generic-build.log
+rg -n '"[^"\n]*[\p{Han}][^"\n]*"' IsleWhispers --glob '*.swift'
+rg -n 'AppleLanguages' IsleWhispers ../IsleWhispersTests
+git diff --check
+```
+
+结果：generic build 退出码 0、`** BUILD SUCCEEDED **`；三个静态检查均无输出。
+
+Fix Round 1 只修改 test-only helper/fixtures 与报告，未修改生产代码，因此没有重跑全量 163 tests。上文 163/163 是 Fix 前的 Task 9 全量证据；Fix 后证据为 LocalizationTests 9/9 加 generic build。
