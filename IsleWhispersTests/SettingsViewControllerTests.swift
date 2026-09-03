@@ -267,8 +267,16 @@ final class SettingsViewControllerTests: XCTestCase {
         )
     }
 
-    func testEnglishMailSubjectAndFallbackAlertsAreLocalized() throws {
+    func testEnglishAndTraditionalChineseAlertsRemainMountedAndLocalizedSequentially() throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let host = try ViewControllerTestHost(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        defer { host.tearDown() }
+
         try assertMailSubjectAndFallbackAlerts(
+            host: host,
             bundle: LocalizationTestSupport.bundle("en"),
             mailSubject: "IsleWhispers Help & Feedback",
             noMailMessage: "No mail app was found. The email address was copied.",
@@ -282,10 +290,8 @@ final class SettingsViewControllerTests: XCTestCase {
             termsMessage: "Terms of Use will be available before release.",
             ok: "OK"
         )
-    }
-
-    func testTraditionalChineseMailSubjectAndFallbackAlertsAreLocalized() throws {
         try assertMailSubjectAndFallbackAlerts(
+            host: host,
             bundle: LocalizationTestSupport.bundle("zh-Hant"),
             mailSubject: "IsleWhispers 說明與意見回饋",
             noMailMessage: "找不到郵件 App，已複製電子郵件地址。",
@@ -414,6 +420,7 @@ private func assertLocalizedSettingsPages(
 
 @MainActor
 private func assertMailSubjectAndFallbackAlerts(
+    host: ViewControllerTestHost,
     bundle: Bundle,
     mailSubject: String,
     noMailMessage: String,
@@ -429,10 +436,6 @@ private func assertMailSubjectAndFallbackAlerts(
     file: StaticString = #filePath,
     line: UInt = #line
 ) throws {
-    let animationsWereEnabled = UIView.areAnimationsEnabled
-    UIView.setAnimationsEnabled(false)
-    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
     let noLinks = AppSupportLinks(privacyPolicyURL: nil, termsOfUseURL: nil, supportURL: nil)
     var attemptedMailURL: URL?
     var copiedEmail: String?
@@ -444,9 +447,6 @@ private func assertMailSubjectAndFallbackAlerts(
             copyEmail: { copiedEmail = $0 }
         )
     }
-    let host = try ViewControllerTestHost(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-    defer { host.tearDown() }
-
     try host.withController(makeHelpController()) { noMailHelp in
         try XCTUnwrap(view("help.sendEmail", in: noMailHelp.view) as? UIControl)
             .sendActions(for: .touchUpInside)
@@ -578,26 +578,31 @@ private func assertSettingsPagesRemainUsableAtAccessibilitySize(
 
 @MainActor
 private final class ViewControllerTestHost {
-    private let rootViewController: UIViewController
+    private let window: UIWindow
+    private let rootViewController: TestHostRootViewController
     private let frame: CGRect
     private var currentController: UIViewController?
 
     init(frame: CGRect) throws {
-        let window = try XCTUnwrap(
+        let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
-                .filter { $0.activationState == .foregroundActive }
-                .flatMap(\.windows)
-                .first {
-                    $0.isKeyWindow
-                        && !$0.isHidden
-                        && $0.rootViewController?.viewIfLoaded?.window === $0
-                }
+                .first { $0.activationState == .foregroundActive }
         )
-        rootViewController = try XCTUnwrap(window.rootViewController)
+        let rootViewController = TestHostRootViewController()
+        let window = UIWindow(windowScene: scene)
+        window.frame = frame
+        window.rootViewController = rootViewController
+        window.isHidden = false
+        self.window = window
+        self.rootViewController = rootViewController
         self.frame = frame
         rootViewController.loadViewIfNeeded()
         rootViewController.view.layoutIfNeeded()
+        XCTAssertTrue(
+            waitForCondition { rootViewController.didFinishAppearing },
+            "Test host root must finish appearing before controllers are attached"
+        )
     }
 
     func withController<T>(
@@ -607,6 +612,7 @@ private final class ViewControllerTestHost {
     ) rethrows -> T {
         attach(controller, traits: traits)
         defer { detach(controller) }
+        XCTAssertTrue(controller.view.window === window, "Hosted controller must remain mounted")
         return try perform(controller)
     }
 
@@ -614,6 +620,14 @@ private final class ViewControllerTestHost {
         if let currentController {
             detach(currentController)
         }
+        rootViewController.beginAppearanceTransition(false, animated: false)
+        rootViewController.endAppearanceTransition()
+        XCTAssertTrue(
+            rootViewController.didFinishDisappearing,
+            "Test host root must finish disappearing before its window is released"
+        )
+        window.isHidden = true
+        window.rootViewController = nil
     }
 
     private func attach(_ controller: UIViewController, traits: UITraitCollection?) {
@@ -642,6 +656,22 @@ private final class ViewControllerTestHost {
         controller.view.removeFromSuperview()
         controller.removeFromParent()
         currentController = nil
+    }
+}
+
+@MainActor
+private final class TestHostRootViewController: UIViewController {
+    private(set) var didFinishAppearing = false
+    private(set) var didFinishDisappearing = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        didFinishAppearing = true
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        didFinishDisappearing = true
     }
 }
 
