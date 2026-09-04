@@ -6,8 +6,14 @@ struct AppSupportLinks {
     let supportURL: URL?
 
     static let current = AppSupportLinks(
-        privacyPolicyURL: nil,
-        termsOfUseURL: nil,
-        supportURL: nil
+        privacyPolicyURL: URL(
+            string: "https://islewhispersweb.dengcheez.workers.dev/privacy"
+        ),
+        termsOfUseURL: URL(
+            string: "https://islewhispersweb.dengcheez.workers.dev/terms"
+        ),
+        supportURL: URL(
+            string: "https://islewhispersweb.dengcheez.workers.dev/support"
+        )
     )
 }

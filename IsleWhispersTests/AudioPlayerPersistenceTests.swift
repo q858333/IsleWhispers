@@ -369,6 +369,27 @@ final class AudioPlayerPersistenceTests: XCTestCase {
             }
         )
         XCTAssertEqual(userDefaults["NSPrivacyAccessedAPITypeReasons"] as? [String], ["CA92.1"])
+
+        let collectedTypes = try XCTUnwrap(
+            plist["NSPrivacyCollectedDataTypes"] as? [[String: Any]]
+        )
+        XCTAssertEqual(collectedTypes.count, 2)
+        XCTAssertEqual(
+            Set(collectedTypes.compactMap { $0["NSPrivacyCollectedDataType"] as? String }),
+            [
+                "NSPrivacyCollectedDataTypeDeviceID",
+                "NSPrivacyCollectedDataTypeOtherDataTypes"
+            ]
+        )
+
+        for collectedType in collectedTypes {
+            XCTAssertEqual(collectedType["NSPrivacyCollectedDataTypeLinked"] as? Bool, true)
+            XCTAssertEqual(collectedType["NSPrivacyCollectedDataTypeTracking"] as? Bool, false)
+            XCTAssertEqual(
+                collectedType["NSPrivacyCollectedDataTypePurposes"] as? [String],
+                ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+            )
+        }
     }
 
     @MainActor
