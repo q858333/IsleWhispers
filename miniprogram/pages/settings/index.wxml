@@ -1,1 +1,1 @@
-<view class="page"><text class="title">岛屿低语</text><text class="desc">本地环境音播放器，不收集或上传个人信息。</text><button data-url="/pages/licenses/index" bindtap="go">素材与授权</button><button data-url="/pages/legal/index" bindtap="go">隐私与服务说明</button></view>
+<view class="page"><text class="title">岛屿低语</text><text class="desc">本地环境音播放器，不收集或上传个人信息。</text><button data-url="/pages/licenses/index" bindtap="go">素材与授权</button><button data-url="/pages/terms/index" bindtap="go">服务条款</button><button data-url="/pages/privacy/index" bindtap="go">隐私保护指引</button></view>
