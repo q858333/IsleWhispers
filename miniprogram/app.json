@@ -1,0 +1,27 @@
+{
+  "pages": [
+    "pages/legal/index",
+    "pages/home/index",
+    "pages/library/index",
+    "pages/settings/index",
+    "pages/licenses/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "岛屿低语",
+    "navigationBarBackgroundColor": "#1B2638",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F6F0E8"
+  },
+  "tabBar": {
+    "color": "#6D625B",
+    "selectedColor": "#253D58",
+    "backgroundColor": "#FDF9F4",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "聆听" },
+      { "pagePath": "pages/library/index", "text": "声音库" },
+      { "pagePath": "pages/settings/index", "text": "设置" }
+    ]
+  },
+  "sitemapLocation": "sitemap.json"
+}

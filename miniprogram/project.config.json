@@ -1,0 +1,10 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "islewhispers-miniprogram",
+  "appid": "",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "minified": true
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "desc": "IsleWhispers sitemap",
+  "rules": [{ "action": "allow", "page": "*" }]
+}
