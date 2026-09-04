@@ -1,0 +1,1 @@
+<view class="page"><view wx:for="{{groups}}" wx:key="name"><text class="heading">{{item.name}}</text><button wx:for="{{item.items}}" wx:key="id" data-id="{{item.id}}" bindtap="select"><text>{{item.title}}</text><text class="sub">{{item.subtitle}}</text></button></view></view>

@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "audit:assets": "node scripts/audit-assets.mjs",
+    "verify": "npm run audit:assets && npm test"
   }
 }
