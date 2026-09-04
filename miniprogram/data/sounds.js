@@ -12,6 +12,7 @@ export const sounds = [
   ['wave-tide', '潮汐回响', '自然', '轻盈回退的潮水'],
   ['wave-drift', '漂流水声', '自然', '细碎流动的水面声'],
   ['wave-swell', '海面涌动', '自然', '更有层次的海浪起伏'],
+  ['dripping-water', '滴水回声', '自然', '可循环的洞穴滴水声'],
   ['night-crickets', '夏夜虫鸣', '氛围', '可循环的夜间虫鸣'],
   ['fire-spark', '微小火花', '生活', '短促、温暖的火焰声']
 ].map(([id, title, category, subtitle], index) => ({
