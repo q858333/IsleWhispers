@@ -1,2 +1,2 @@
-const manifest = require('../../assets/licenses/manifest.json');
-Page({ data: { assets: manifest.assets } });
+import { licensedAssets } from '../../data/licenses';
+Page({ data: { assets: licensedAssets } });

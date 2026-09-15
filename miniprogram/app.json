@@ -2,6 +2,7 @@
   "pages": [
     "pages/legal/index",
     "pages/home/index",
+    "pages/player/index",
     "pages/library/index",
     "pages/settings/index",
     "pages/licenses/index",
@@ -9,21 +10,23 @@
     "pages/privacy/index"
   ],
   "window": {
-    "navigationBarTitleText": "岛屿低语",
+    "navigationBarTitleText": "白噪音小岛",
     "navigationBarBackgroundColor": "#1B2638",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#F6F0E8"
   },
   "tabBar": {
+    "custom": true,
     "color": "#6D625B",
     "selectedColor": "#253D58",
     "backgroundColor": "#FDF9F4",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "聆听" },
-      { "pagePath": "pages/library/index", "text": "声音库" },
-      { "pagePath": "pages/settings/index", "text": "设置" }
+      { "pagePath": "pages/home/index", "text": "聆听", "iconPath": "assets/tab-icons/listen.png", "selectedIconPath": "assets/tab-icons/listen-active.png" },
+      { "pagePath": "pages/library/index", "text": "声音库", "iconPath": "assets/tab-icons/library.png", "selectedIconPath": "assets/tab-icons/library-active.png" },
+      { "pagePath": "pages/settings/index", "text": "设置", "iconPath": "assets/tab-icons/settings.png", "selectedIconPath": "assets/tab-icons/settings-active.png" }
     ]
   },
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
 }

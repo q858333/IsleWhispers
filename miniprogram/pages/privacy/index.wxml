@@ -1,1 +1,12 @@
-<view class="page"><text class="title">隐私保护指引</text><text class="body">我们不收集、不上传或共享个人信息。小程序仅在你的设备本地保存已选声音、静音状态、最近播放记录和首次阅读提示状态；这些数据用于维持播放体验，可在微信设置中清除小程序数据。</text></view>
+<scroll-view class="page" scroll-y="true">
+  <view class="article">
+    <text class="title">隐私保护指引</text>
+    <text class="updated">生效日期：2026 年 9 月 4 日</text>
+    <text class="heading">一、我们不收集的信息</text>
+    <text class="body">本小程序不收集、不上传、不共享你的个人信息，也不接入账号、支付、定位、通讯录、相册或摄像头能力。</text>
+    <text class="heading">二、本地保存的数据</text>
+    <text class="body">小程序只在你的设备本地保存已选声音、静音状态、最近播放记录和首次阅读提示状态。这些数据仅用于维持播放体验。</text>
+    <text class="heading">三、如何清除数据</text>
+    <text class="body">你可以在微信的小程序设置中清除本小程序数据。清除后，本地播放偏好将被重置。</text>
+  </view>
+</scroll-view>

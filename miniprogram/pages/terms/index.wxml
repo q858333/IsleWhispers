@@ -1,1 +1,12 @@
-<view class="page"><text class="title">服务条款</text><text class="body">本小程序提供本地环境音播放服务。音频仅供个人聆听，不得将本小程序内的音频单独提取、销售或冒充为自有作品。请遵守法律法规及微信平台规则。</text></view>
+<scroll-view class="page" scroll-y="true">
+  <view class="article">
+    <text class="title">服务条款</text>
+    <text class="updated">生效日期：2026 年 9 月 4 日</text>
+    <text class="heading">一、服务内容</text>
+    <text class="body">白噪音小岛提供本地环境音播放、声音选择和睡眠定时服务。</text>
+    <text class="heading">二、使用规则</text>
+    <text class="body">音频仅供个人聆听。不得将小程序内音频单独提取、销售，或冒充为自有作品。</text>
+    <text class="heading">三、平台规则</text>
+    <text class="body">请遵守适用法律法规及微信平台规则。我们可在必要时更新本条款。</text>
+  </view>
+</scroll-view>
