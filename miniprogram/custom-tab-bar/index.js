@@ -1,8 +1,9 @@
-import { selectedTabIndex, tabPaths } from '../services/tab-navigation';
+import { selectedTabIndex, tabBarAppearance, tabPaths } from '../services/tab-navigation';
 
 Component({
   data: {
     selected: 0,
+    appearance: 'dark',
     tabs: [
       { text: '首页', icon: '/assets/tab-icons/listen.png', activeIcon: '/assets/tab-icons/listen-active.png' },
       { text: '声音', icon: '/assets/tab-icons/library.png', activeIcon: '/assets/tab-icons/library-active.png' },
@@ -10,7 +11,7 @@ Component({
     ]
   },
   methods: {
-    setSelected(path) { this.setData({ selected: selectedTabIndex(path) }); },
+    setSelected(path) { this.setData({ selected: selectedTabIndex(path), appearance: tabBarAppearance(path) }); },
     switchTab(event) { wx.switchTab({ url: tabPaths[event.currentTarget.dataset.index] }); }
   }
 });

@@ -5,4 +5,8 @@ export function selectedTabIndex(path) {
   return index < 0 ? 0 : index;
 }
 
+export function tabBarAppearance(path) {
+  return selectedTabIndex(path) === 0 ? 'dark' : 'light';
+}
+
 export { tabPaths };
