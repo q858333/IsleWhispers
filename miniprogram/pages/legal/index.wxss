@@ -1,1 +1,7 @@
-.page{padding:64rpx 48rpx}.title{display:block;font-size:48rpx;font-weight:700}.body{display:block;line-height:1.8;color:#5f5751;margin:32rpx 0 56rpx}.page button{background:#253d58;color:#fff}
+.launch-background{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.page{position:relative;box-sizing:border-box;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:120rpx 40rpx;padding-top:calc(120rpx + env(safe-area-inset-top));padding-bottom:calc(48rpx + env(safe-area-inset-bottom))}
+.dialog{box-sizing:border-box;width:100%;max-width:640rpx;padding:48rpx 40rpx;background:#fff;color:#000;border-radius:28rpx;box-shadow:0 16rpx 64rpx rgba(0,0,0,.12)}
+.title{display:block;font-size:40rpx;font-weight:700;color:#000}
+.body{display:block;font-size:28rpx;line-height:1.8;color:#000;margin:28rpx 0 40rpx}
+.dialog button{margin-top:20rpx;background:#fff;color:#000;font-size:28rpx;border:1rpx solid #ddd;border-radius:16rpx}
+.dialog button:last-child{margin-top:32rpx;border-color:#000;font-weight:600}

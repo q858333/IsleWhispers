@@ -30,9 +30,10 @@
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "assets/audio" }
+    ],
     "include": [
-      { "type": "folder", "value": "assets/audio" },
       { "type": "folder", "value": "assets/backgrounds" }
     ]
   },

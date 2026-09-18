@@ -1,1 +1,1 @@
-<view class="page"><text class="intro">全部音频均为 CC0，并保留来源与文件散列。</text><view wx:for="{{assets}}" wx:key="id" class="item"><text>{{item.title}}</text><text>{{item.author}} · {{item.license}}</text><text selectable="true">{{item.sourceUrl}}</text></view></view>
+<view class="page"><text class="intro">全部音频为开发者自有的 AI 生成素材，云端文件散列已留档。</text><view wx:for="{{assets}}" wx:key="id" class="item"><text>{{item.title}}</text><text>{{item.author}} · {{item.license}}</text></view></view>

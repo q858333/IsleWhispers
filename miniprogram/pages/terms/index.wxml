@@ -1,12 +1,24 @@
 <scroll-view class="page" scroll-y="true">
   <view class="article">
     <text class="title">服务条款</text>
-    <text class="updated">生效日期：2026 年 9 月 4 日</text>
-    <text class="heading">一、服务内容</text>
-    <text class="body">白噪音小岛提供本地环境音播放、声音选择和睡眠定时服务。</text>
-    <text class="heading">二、使用规则</text>
-    <text class="body">音频仅供个人聆听。不得将小程序内音频单独提取、销售，或冒充为自有作品。</text>
-    <text class="heading">三、平台规则</text>
-    <text class="body">请遵守适用法律法规及微信平台规则。我们可在必要时更新本条款。</text>
+    <text class="updated">更新日期：2026 年 9 月 18 日</text>
+    <text class="body">运营者：邓斌（个人）
+联系邮箱：dengsir_wy@163.com</text>
+    <text class="heading">一、适用范围</text>
+    <text class="body">欢迎使用白噪音小岛。本条款适用于本小程序提供的环境音播放及相关功能。使用前，请阅读本条款及《隐私保护指引》；如不同意，可退出小程序。</text>
+    <text class="heading">二、服务内容</text>
+    <text class="body">本小程序提供自然与生活环境音、声音选择、最近播放记录、后台播放及睡眠定时功能，无需注册独立账号。音频优先读取已保存的本地文件，无本地文件时通过微信云开发下载并保存；下载时可能产生网络流量费用，由网络服务提供方按你的套餐计收。</text>
+    <text class="heading">三、播放与使用提示</text>
+    <text class="body">播放及定时效果可能受网络、微信版本、设备系统和后台运行限制影响。你可在播放页暂停声音、调整定时，也可通过微信或系统的音频控制停止播放。请使用适当音量，并在需要留意周围环境时谨慎使用耳机。</text>
+    <text class="heading">四、服务用途</text>
+    <text class="body">本小程序用于日常聆听、休息与专注场景，不提供医疗诊断或治疗服务，也不承诺改善睡眠等特定效果。</text>
+    <text class="heading">五、素材与使用规则</text>
+    <text class="body">音频、图片等素材的说明请见设置页中的“素材与授权”。本服务供个人聆听使用；除适用法律或素材授权另有允许外，未经许可，不得提取、销售、再分发素材或冒充为自有作品。不得利用本服务开展违法活动或干扰服务正常运行。</text>
+    <text class="heading">六、服务调整与责任</text>
+    <text class="body">我们可能为修复问题、维护资源或适配微信平台调整服务内容。发生中断时，我们将根据实际情况处理。双方的权利与责任依适用法律确定，本条款不排除或限制依法不得排除或限制的责任。</text>
+    <text class="heading">七、未成年人使用</text>
+    <text class="body">未成年人请在监护人指导下阅读本条款及隐私保护指引，并合理安排聆听时间与音量。</text>
+    <text class="heading">八、条款更新与反馈</text>
+    <text class="body">条款发生更新时，我们会在本页面标注更新日期；涉及用户权益的重要变化，将通过适当方式提示。关于服务、素材或本条款的问题，可发送邮件至 dengsir_wy@163.com，或通过微信小程序右上角菜单中的反馈入口提交。请勿在反馈中提供无关的敏感个人信息。</text>
   </view>
 </scroll-view>

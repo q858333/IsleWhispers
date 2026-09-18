@@ -27,6 +27,7 @@
       { "pagePath": "pages/settings/index", "text": "设置", "iconPath": "assets/tab-icons/settings.png", "selectedIconPath": "assets/tab-icons/settings-active.png" }
     ]
   },
+  "requiredBackgroundModes": ["audio"],
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents"
 }
