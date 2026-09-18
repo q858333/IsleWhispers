@@ -13,7 +13,7 @@ Page({
     app.player.play();
     this.render();
   },
-  onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); this.render(); },
+  onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); if (app.sleepTimer.remainingMs() === null) this.setData({ timerChoice: 0 }); this.render(); },
   onUnload() { this.unsubscribe?.(); clearInterval(this.clock); },
   tick() {
     if (app.sleepTimer.consumeExpiry()) app.player.pause();

@@ -1,0 +1,1 @@
+<image wx:if="{{localPath}}" src="{{localPath}}" mode="{{mode}}"/>

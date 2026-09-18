@@ -1,12 +1,10 @@
 <view class="page">
-  <image class="background" src="{{sound.backgroundPath}}" mode="aspectFill"/>
+  <cloud-image class="background" src="{{sound.backgroundPath}}" mode="aspectFill"/>
   <view class="shade"/>
-  <view class="content">
-    <view class="top-row"><view><text class="brand">此刻 · 听见岛屿</text><text class="page-name">专注聆听</text></view><button class="icon-button" bindtap="showPicker">☷</button></view>
-    <view class="title-block"><text class="title">{{sound.title}}</text><text class="subtitle">{{sound.subtitle}}</text></view>
-    <view wx:if="{{state.error}}" class="error">{{state.error}}</view>
-    <view class="bottom-controls"><view class="timer-card"><button class="countdown" bindtap="showTimer">{{timerText}}</button><text class="countdown-caption">睡眠定时</text></view><view class="control-row"><button class="primary-control" bindtap="toggle">{{state.isPlaying ? 'Ⅱ' : '▶'}}</button><button class="close-button" bindtap="close">×</button></view></view>
+  <view class="content" style="padding-top: {{topInset}}px">
+    <view class="top-row"><text class="title">{{sound.title}}</text><button class="icon-button" bindtap="showPicker" aria-label="选择声音">☷</button></view>
+    <view class="bottom-controls"><view wx:if="{{state.error}}" class="error"><text>{{state.error}}</text><button class="retry-button" bindtap="retry">重试</button></view><button class="countdown" bindtap="showTimer" aria-label="睡眠定时 {{timerText}}">{{timerText}}</button><view class="control-row"><button class="primary-control" bindtap="toggle" aria-label="{{state.isPlaying ? '暂停' : '播放'}}">{{state.isPlaying ? 'Ⅱ' : '▶'}}</button><button wx:if="{{!state.isPlaying || state.error}}" class="close-button" bindtap="close" aria-label="结束聆听">×</button></view></view>
   </view>
-  <view wx:if="{{pickerOpen}}" class="sheet-mask" bindtap="hidePicker"><view class="picker-sheet" catchtap="noop"><view class="sheet-handle"/><text class="sheet-title">选择声音</text><scroll-view scroll-y class="sound-list"><button wx:for="{{sounds}}" wx:key="id" data-id="{{item.id}}" bindtap="chooseSound" class="{{item.id === sound.id ? 'sound-option selected' : 'sound-option'}}"><image class="option-image" src="{{item.backgroundPath}}" mode="aspectFill"/><view><text class="option-title">{{item.title}}</text><text class="option-subtitle">{{item.subtitle}}</text></view></button></scroll-view></view></view>
+  <view wx:if="{{pickerOpen}}" class="sheet-mask" bindtap="hidePicker"><view class="picker-sheet" catchtap="noop"><view class="sheet-handle"/><text class="sheet-title">选择声音</text><scroll-view scroll-y class="sound-list"><button wx:for="{{sounds}}" wx:key="id" data-id="{{item.id}}" bindtap="chooseSound" class="{{item.id === sound.id ? 'sound-option selected' : 'sound-option'}}"><cloud-image class="option-image" src="{{item.backgroundPath}}" mode="aspectFill"/><view><text class="option-title">{{item.title}}</text><text class="option-subtitle">{{item.subtitle}}</text></view></button></scroll-view></view></view>
   <view wx:if="{{timerOpen}}" class="sheet-mask" bindtap="hideTimer"><view class="timer-sheet" catchtap="noop"><view class="sheet-handle"/><text class="sheet-title">睡眠定时</text><button data-minutes="0" bindtap="timer">不限时</button><button data-minutes="15" bindtap="timer">15 分钟</button><button data-minutes="30" bindtap="timer">30 分钟</button><button data-minutes="60" bindtap="timer">60 分钟</button></view></view>
 </view>

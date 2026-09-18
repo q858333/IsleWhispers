@@ -1,0 +1,10 @@
+.page{min-height:100vh;box-sizing:border-box;padding:96rpx 40rpx 64rpx;padding-bottom:calc(64rpx + env(safe-area-inset-bottom));background:linear-gradient(145deg,#d7a2a6,#fbf3dd 52%,#b8d4df);color:#332c36}
+.brand{text-align:center;padding:32rpx 0 72rpx}
+.app-icon{width:176rpx;height:176rpx;border-radius:40rpx;box-shadow:0 12rpx 36rpx rgba(102,75,83,.16)}
+.name,.version,.heading,.description,.email{display:block}
+.name{margin-top:32rpx;font-size:44rpx;font-weight:700}
+.version{margin-top:16rpx;font-size:26rpx;color:#675961}
+.contact{padding:36rpx 32rpx;border-radius:28rpx;background:rgba(255,255,255,.8)}
+.heading{font-size:30rpx;font-weight:700}
+.description{margin-top:18rpx;font-size:26rpx;line-height:1.7;color:#675961}
+.email{margin-top:24rpx;font-size:30rpx;line-height:1.6;word-break:break-all;color:#253d58}

@@ -5,6 +5,7 @@
     "pages/player/index",
     "pages/library/index",
     "pages/settings/index",
+    "pages/about/index",
     "pages/licenses/index",
     "pages/terms/index",
     "pages/privacy/index"

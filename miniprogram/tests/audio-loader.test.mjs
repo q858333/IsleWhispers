@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, access, rename, writeFile, readFile, unlink, rm } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createCloudAudioSource } from '../services/cloud-audio-source.js';
+import { AudioLoader } from '../utils/audio-loader.js';
 import { cloudAudio } from '../config/cloud-audio.js';
 
 const sound = { id: 'tea', audioFileName: 'tea.mp3' };
@@ -30,7 +30,7 @@ async function fixture(t) {
     }
   };
   const options = { cloud, fileSystem, userDataPath, ...cloudAudio };
-  return { calls, cloud, fileSystem, userDataPath, create: (overrides = {}) => createCloudAudioSource({ ...options, ...overrides }) };
+  return { calls, cloud, fileSystem, userDataPath, create: (overrides = {}) => new AudioLoader({ ...options, ...overrides }) };
 }
 
 test('首次下载保存为本地文件，重建来源后不联网即可复用', async (t) => {

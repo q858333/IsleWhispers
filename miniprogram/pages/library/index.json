@@ -1,1 +1,6 @@
-{ "navigationStyle": "custom" }
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "cloud-image": "/components/cloud-image/index"
+  }
+}

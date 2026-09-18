@@ -31,11 +31,16 @@
   "simulatorPluginLibVersion": {},
   "packOptions": {
     "ignore": [
-      { "type": "folder", "value": "assets/audio" }
+      {
+        "type": "folder",
+        "value": "assets/audio"
+      },
+      {
+        "type": "folder",
+        "value": "assets/backgrounds"
+      }
     ],
-    "include": [
-      { "type": "folder", "value": "assets/backgrounds" }
-    ]
+    "include": []
   },
   "editorSetting": {}
 }
