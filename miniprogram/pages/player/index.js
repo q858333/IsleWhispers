@@ -3,10 +3,11 @@ import { sounds } from '../../data/sounds';
 const app = getApp();
 
 Page({
-  data: { state: {}, sound: {}, timerText: '∞', pickerOpen: false, timerOpen: false, sounds },
+  data: { state: {}, sound: {}, hasTimer: false, isDevelop: false, currentHour: '', currentMinute: '', endTimeText: '', pickerOpen: false, timerOpen: false, sounds },
   onLoad() {
     const capsule = wx.getMenuButtonBoundingClientRect();
-    this.setData({ topInset: capsule.bottom + 16 });
+    const { envVersion } = wx.getAccountInfoSync().miniProgram;
+    this.setData({ topInset: capsule.bottom + 16, isDevelop: envVersion === 'develop' });
     this.unsubscribe = app.player.subscribe(() => this.render());
     this.clock = setInterval(() => this.tick(), 1000);
     this.render();
@@ -14,17 +15,24 @@ Page({
   onShow() { this.render(); },
   onUnload() { this.unsubscribe?.(); clearInterval(this.clock); app.sleepTimer.schedule(0); },
   tick() {
-    if (app.sleepTimer.consumeExpiry()) app.player.pause();
+    app.sleepTimer.consumeExpiry();
     this.render();
   },
   render() {
     const state = app.player.getState();
     const remainingMs = app.sleepTimer.remainingMs();
-    const seconds = Math.max(0, Math.ceil((remainingMs || 0) / 1000));
+    const now = new Date();
+    const deadline = app.sleepTimer.endsAt();
+    const end = deadline === null ? null : new Date(deadline);
+    const pad = (value) => String(value).padStart(2, '0');
+    const nextDay = end && end.toDateString() !== now.toDateString();
     this.setData({
+      hasTimer: remainingMs !== null,
+      currentHour: pad(now.getHours()),
+      currentMinute: pad(now.getMinutes()),
+      endTimeText: end ? `${nextDay ? '次日 ' : ''}${pad(end.getHours())}:${pad(end.getMinutes())} 到期` : '已暂停 · 恢复后继续',
       state,
-      sound: sounds.find((item) => item.id === state.soundId),
-      timerText: remainingMs === null ? '∞' : `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+      sound: sounds.find((item) => item.id === state.soundId)
     });
   },
   toggle() {
@@ -47,7 +55,8 @@ Page({
   showTimer() { this.setData({ timerOpen: true, pickerOpen: false }); },
   hideTimer() { this.setData({ timerOpen: false }); },
   timer(event) {
-    app.sleepTimer.schedule(Number(event.currentTarget.dataset.minutes));
+    const { minutes, seconds } = event.currentTarget.dataset;
+    app.sleepTimer.schedule(seconds === undefined ? Number(minutes) : Number(seconds) / 60);
     if (!app.player.getState().isPlaying) app.sleepTimer.pause();
     this.setData({ timerOpen: false });
     this.render();

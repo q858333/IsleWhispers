@@ -1,4 +1,4 @@
-export function createSleepTimer(clock) {
+export function createSleepTimer(clock, onExpire = () => {}) {
   let deadline = null;
   let pausedRemaining = null;
 
@@ -17,6 +17,7 @@ export function createSleepTimer(clock) {
       deadline = clock.now() + pausedRemaining;
       pausedRemaining = null;
     },
+    endsAt() { return deadline; },
     remainingMs() {
       if (deadline !== null) return Math.max(0, deadline - clock.now());
       return pausedRemaining;
@@ -24,6 +25,7 @@ export function createSleepTimer(clock) {
     consumeExpiry() {
       if (deadline === null || deadline > clock.now()) return false;
       deadline = null;
+      onExpire();
       return true;
     }
   };

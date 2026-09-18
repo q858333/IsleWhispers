@@ -3,9 +3,10 @@ import { sounds } from '../../data/sounds';
 const app = getApp();
 
 Page({
-  data: { state: {}, sound: {}, sounds, soundIndex: 0, recent: [], recentOpen: false, timerChoice: 0 },
+  data: { state: {}, sound: {}, sounds, soundIndex: 0, recent: [], recentOpen: false, timerChoice: 0, topInset: 0 },
   onLoad() {
-    this.setData({ recentOpen: false });
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    this.setData({ recentOpen: false, topInset: capsule.bottom + 16 });
     this.unsubscribe = app.player.subscribe(() => this.render());
     this.clock = setInterval(() => this.tick(), 1000);
     app.storage.recordRecent(app.player.getState().soundId);
@@ -15,7 +16,7 @@ Page({
   onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); if (app.sleepTimer.remainingMs() === null) this.setData({ timerChoice: 0 }); this.render(); },
   onUnload() { this.unsubscribe?.(); clearInterval(this.clock); },
   tick() {
-    if (app.sleepTimer.consumeExpiry()) app.player.pause();
+    app.sleepTimer.consumeExpiry();
     this.render();
   },
   render() {

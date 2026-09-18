@@ -1,3 +1,4 @@
+import { createTimerBell } from './services/timer-bell';
 import { ImageLoader } from './utils/image-loader';
 import { cloudAudio } from './config/cloud-audio';
 import { sounds } from './data/sounds';
@@ -22,7 +23,11 @@ App({
         ...cloudAudio
       })
     });
-    this.sleepTimer = createSleepTimer({ now: Date.now });
+    this.timerBell = createTimerBell(wx);
+    this.sleepTimer = createSleepTimer({ now: Date.now }, () => {
+      this.player.pause();
+      this.timerBell.play();
+    });
   },
-  onShow() { if (this.sleepTimer.consumeExpiry()) this.player.pause(); }
+  onShow() { this.sleepTimer.consumeExpiry(); }
 });

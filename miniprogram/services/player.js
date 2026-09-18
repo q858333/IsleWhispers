@@ -38,7 +38,6 @@ export function createPlayer({ audioManager, storage, sounds, audioSource = { re
       });
     return loadingPromise;
   };
-  load();
   audioManager.onPlay(() => { state.isPlaying = true; state.error = null; publish(); });
   audioManager.onPause(() => { state.isPlaying = false; publish(); });
   audioManager.onStop(() => { state.isPlaying = false; publish(); });
