@@ -1,8 +1,9 @@
+import { appVersion } from '../../config/app-version';
+
 Page({
-  data: { version: '' },
+  data: { version: `版本 ${appVersion}` },
   onLoad() {
-    const { version, envVersion } = wx.getAccountInfoSync().miniProgram;
-    const environment = { develop: '开发版', trial: '体验版', release: '正式版' };
-    this.setData({ version: version ? `版本 ${version}` : (environment[envVersion] || '版本信息暂不可用') });
+    const { version } = wx.getAccountInfoSync().miniProgram;
+    this.setData({ version: `版本 ${version || appVersion}` });
   }
 });
