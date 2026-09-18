@@ -38,6 +38,18 @@
       {
         "type": "folder",
         "value": "assets/backgrounds"
+      },
+      {
+        "type": "file",
+        "value": "assets/licenses/manifest.json"
+      },
+      {
+        "type": "file",
+        "value": "project.private.config.json"
+      },
+      {
+        "type": "file",
+        "value": "package.json"
       }
     ],
     "include": []

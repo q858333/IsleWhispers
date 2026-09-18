@@ -1,5 +1,4 @@
 import { sounds } from '../../data/sounds';
-import { nextSoundIndexFromSwipe } from '../../services/swipe-navigation';
 
 const app = getApp();
 
@@ -34,16 +33,8 @@ Page({
     wx.navigateTo({ url: '/pages/player/index' });
   },
   changeSound(event) {
+    if (event.detail.source !== 'touch') return;
     this.selectSoundAt(event.detail.current);
-  },
-  startSwipe(event) {
-    this.swipeStartX = event.touches?.[0]?.pageX;
-  },
-  finishSwipe(event) {
-    const endX = event.changedTouches?.[0]?.pageX;
-    if (typeof this.swipeStartX !== 'number' || typeof endX !== 'number') return;
-    this.selectSoundAt(nextSoundIndexFromSwipe(this.data.soundIndex, sounds.length, this.swipeStartX, endX));
-    this.swipeStartX = null;
   },
   selectSoundAt(index) {
     const sound = sounds[index];
