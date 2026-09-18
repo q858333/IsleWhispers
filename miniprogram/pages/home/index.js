@@ -9,8 +9,6 @@ Page({
     this.setData({ recentOpen: false, topInset: capsule.bottom + 16 });
     this.unsubscribe = app.player.subscribe(() => this.render());
     this.clock = setInterval(() => this.tick(), 1000);
-    app.storage.recordRecent(app.player.getState().soundId);
-    app.player.play();
     this.render();
   },
   onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); app.sleepTimer.schedule(0); this.setData({ timerChoice: 0 }); this.render(); },
@@ -30,6 +28,7 @@ Page({
     });
   },
   openPlayer() {
+    app.storage.recordRecent(app.player.getState().soundId);
     if (!app.player.getState().isPlaying) app.player.play();
     wx.navigateTo({ url: '/pages/player/index' });
   },
@@ -41,11 +40,18 @@ Page({
     const sound = sounds[index];
     if (!sound || sound.id === app.player.getState().soundId) return;
     app.player.select(sound.id);
-    app.player.play();
-    app.storage.recordRecent(sound.id);
+    if (app.player.getState().isPlaying) app.storage.recordRecent(sound.id);
   },
-  togglePlayback() { app.player.toggle(); },
-  toggleMute() { app.player.setMuted(!app.player.getState().muted); },
+  togglePlayback() {
+    const state = app.player.getState();
+    if (state.isPlaying && !state.muted) {
+      app.player.pause();
+      return;
+    }
+    if (state.muted) app.player.setMuted(false);
+    if (!app.player.getState().isPlaying) app.player.play();
+    app.storage.recordRecent(state.soundId);
+  },
   setTimer(event) {
     const minutes = Number(event.currentTarget.dataset.minutes);
     app.sleepTimer.schedule(minutes);

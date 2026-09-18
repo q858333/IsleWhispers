@@ -8,7 +8,7 @@ function fixture() {
   let page, playing = false;
   const timer = createSleepTimer({ now: () => 0 });
   const navigations = [];
-  vm.runInNewContext(source, { sounds: [], getApp: () => ({ sleepTimer: timer, player: { getState: () => ({ isPlaying: playing }), play() { playing = true; } } }), Page: p => { page = p; }, wx: { navigateTo(options) { navigations.push({ url: options.url, remaining: timer.remainingMs(), playing }); } } });
+  vm.runInNewContext(source, { sounds: [], getApp: () => ({ sleepTimer: timer, storage: { recordRecent() {} }, player: { getState: () => ({ isPlaying: playing }), play() { playing = true; } } }), Page: p => { page = p; }, wx: { navigateTo(options) { navigations.push({ url: options.url, remaining: timer.remainingMs(), playing }); } } });
   page.setData = data => Object.assign(page.data, data); page.render = () => {};
   return { page, timer, navigations };
 }
