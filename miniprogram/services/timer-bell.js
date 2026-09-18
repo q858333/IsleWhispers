@@ -23,6 +23,7 @@ export function createTimerBell(wxApi) {
       stopTimer = setTimeout(finish, 30_000);
       current.play();
     },
+    isRinging: () => audio !== null,
     stop
   };
 }

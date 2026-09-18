@@ -23,10 +23,10 @@ test('铃声循环30秒自动停止，出错或手动停止会释放资源', (t)
     const audio = { played: 0, destroyed: 0, onEnded(fn) { this.ended = fn; }, onError(fn) { this.error = fn; }, play() { this.played++; }, destroy() { this.destroyed++; } };
     instances.push(audio); return audio;
   } });
-  bell.play(); const first = instances[0];
+  bell.play(); assert.equal(bell.isRinging(), true); const first = instances[0];
   assert.equal(first.src, '/assets/notifications/timer-bell.mp3'); assert.equal(first.loop, true); assert.equal(first.played, 1);
   t.mock.timers.tick(29_999); assert.equal(first.destroyed, 0);
-  t.mock.timers.tick(1); assert.equal(first.destroyed, 1);
+  t.mock.timers.tick(1); assert.equal(first.destroyed, 1); assert.equal(bell.isRinging(), false);
   bell.play(); instances[1].error(); assert.equal(instances[1].destroyed, 1);
   bell.play(); bell.stop(); assert.equal(instances[2].destroyed, 1);
   t.mock.timers.tick(30_000); assert.equal(instances[1].destroyed, 1); assert.equal(instances[2].destroyed, 1);

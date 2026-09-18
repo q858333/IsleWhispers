@@ -13,7 +13,7 @@ Page({
     app.player.play();
     this.render();
   },
-  onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); if (app.sleepTimer.remainingMs() === null) this.setData({ timerChoice: 0 }); this.render(); },
+  onShow() { this.getTabBar?.()?.setSelected('/pages/home/index'); app.sleepTimer.schedule(0); this.setData({ timerChoice: 0 }); this.render(); },
   onUnload() { this.unsubscribe?.(); clearInterval(this.clock); },
   tick() {
     app.sleepTimer.consumeExpiry();
@@ -50,7 +50,7 @@ Page({
     const minutes = Number(event.currentTarget.dataset.minutes);
     app.sleepTimer.schedule(minutes);
     this.setData({ timerChoice: minutes });
-    this.render();
+    this.openPlayer();
   },
   openRecent() { this.setData({ recentOpen: true }); },
   closeRecent() { this.setData({ recentOpen: false }); },

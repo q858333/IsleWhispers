@@ -1,8 +1,21 @@
 <view class="page">
   <cloud-image class="background" src="{{sound.backgroundPath}}" mode="aspectFill"/>
   <view class="backdrop"/>
-  <view class="home-header" style="padding-top: {{topInset}}px"><view><text class="eyebrow">此刻 · 听见岛屿</text><text class="sound-title">{{sound.title}}</text></view><view class="header-actions"><button class="header-button mute-button" bindtap="toggleMute"><text class="speaker">{{state.muted ? '◑' : '◕'}}</text></button><button class="header-button recent-button" bindtap="openRecent">◷</button></view></view>
+  <view class="home-header" style="padding-top: {{topInset}}px"><view><text class="eyebrow">此刻 · 听见岛屿</text><text class="sound-title">{{sound.title}}</text></view><view class="header-actions"><button class="header-button mute-button" bindtap="toggleMute" aria-label="{{state.muted ? '取消静音' : '静音'}}"><view class="speaker {{state.muted ? 'speaker-muted' : 'speaker-on'}}"/></button><button class="header-button recent-button" bindtap="openRecent" aria-label="最近播放"><view class="recent-clock"/></button></view></view>
   <swiper class="sound-carousel" current="{{soundIndex}}" bindchange="changeSound" circular><swiper-item wx:for="{{sounds}}" wx:key="id"><view class="swipe-page"/></swiper-item></swiper>
   <view class="home-controls"><view class="page-dots"><text wx:for="{{sounds}}" wx:key="id" class="{{index === soundIndex ? 'dot active' : 'dot'}}"/></view><button class="primary-control" bindtap="openPlayer" aria-label="进入沉浸式播放"><view wx:if="{{state.isPlaying}}" class="waveform"><i/><i/><i/><i/><i/></view><text wx:else>▶</text></button><scroll-view class="timer-options" scroll-x="{{true}}" show-scrollbar="{{false}}"><button data-minutes="0" bindtap="setTimer" class="{{timerChoice === 0 ? 'timer-option selected' : 'timer-option'}}">不限时</button><button data-minutes="15" bindtap="setTimer" class="{{timerChoice === 15 ? 'timer-option selected' : 'timer-option'}}">15 分钟</button><button data-minutes="30" bindtap="setTimer" class="{{timerChoice === 30 ? 'timer-option selected' : 'timer-option'}}">30 分钟</button><button data-minutes="60" bindtap="setTimer" class="{{timerChoice === 60 ? 'timer-option selected' : 'timer-option'}}">60 分钟</button><button data-minutes="90" bindtap="setTimer" class="{{timerChoice === 90 ? 'timer-option selected' : 'timer-option'}}">90 分钟</button><button data-minutes="120" bindtap="setTimer" class="{{timerChoice === 120 ? 'timer-option selected' : 'timer-option'}}">120 分钟</button></scroll-view></view>
-  <view wx:if="{{recentOpen}}" class="recent-page" style="padding-top: {{topInset}}px"><view class="recent-header"><text>最近播放</text><button class="recent-close" bindtap="closeRecent">×</button></view><view wx:if="{{recent.length}}" class="recent-grid"><button wx:for="{{recent}}" wx:key="id" data-id="{{item.id}}" bindtap="selectRecent" class="recent-card"><cloud-image class="{{item.id === sound.id ? 'recent-art selected-art' : 'recent-art'}}" src="{{item.backgroundPath}}" mode="aspectFill"/><view wx:if="{{item.id === sound.id}}" class="playing-mark"><view class="mini-wave"><i/><i/><i/><i/></view></view><text class="recent-name">{{item.title}}</text></button></view><view wx:else class="recent-empty"><text class="empty-title">还没有最近播放</text><text class="empty-detail">开始聆听后，声音会显示在这里。</text></view></view>
+  <view wx:if="{{recentOpen}}" class="recent-page" style="padding-top: {{topInset}}px">
+    <view class="recent-header"><text>最近播放</text><button class="recent-close" bindtap="closeRecent" aria-label="关闭最近播放">×</button></view>
+    <scroll-view wx:if="{{recent.length}}" class="recent-scroll" scroll-y="{{true}}">
+      <view class="recent-grid">
+        <button wx:for="{{recent}}" wx:key="id" data-id="{{item.id}}" bindtap="selectRecent" class="recent-card {{item.id === sound.id ? 'recent-card-selected' : ''}}">
+          <cloud-image class="recent-art" src="{{item.backgroundPath}}" mode="aspectFill"/>
+          <view class="recent-shade"/>
+          <view wx:if="{{item.id === sound.id}}" class="playing-mark"><view class="mini-wave"><i/><i/><i/><i/></view></view>
+          <view class="recent-copy"><text class="recent-name">{{item.title}}</text><text class="recent-subtitle">{{item.subtitle}}</text></view>
+        </button>
+      </view>
+    </scroll-view>
+    <view wx:else class="recent-empty"><text class="empty-title">还没有最近播放</text><text class="empty-detail">开始聆听后，声音会显示在这里。</text></view>
+  </view>
 </view>

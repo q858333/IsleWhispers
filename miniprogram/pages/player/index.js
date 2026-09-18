@@ -3,7 +3,7 @@ import { sounds } from '../../data/sounds';
 const app = getApp();
 
 Page({
-  data: { state: {}, sound: {}, hasTimer: false, isDevelop: false, currentHour: '', currentMinute: '', endTimeText: '', pickerOpen: false, timerOpen: false, sounds },
+  data: { state: {}, sound: {}, hasTimer: false, isRinging: false, isDevelop: false, currentHour: '', currentMinute: '', endTimeText: '', pickerOpen: false, timerOpen: false, sounds },
   onLoad() {
     const capsule = wx.getMenuButtonBoundingClientRect();
     const { envVersion } = wx.getAccountInfoSync().miniProgram;
@@ -13,7 +13,7 @@ Page({
     this.render();
   },
   onShow() { this.render(); },
-  onUnload() { this.unsubscribe?.(); clearInterval(this.clock); app.sleepTimer.schedule(0); },
+  onUnload() { this.unsubscribe?.(); clearInterval(this.clock); app.sleepTimer.schedule(0); app.timerBell.stop(); },
   tick() {
     app.sleepTimer.consumeExpiry();
     this.render();
@@ -21,6 +21,7 @@ Page({
   render() {
     const state = app.player.getState();
     const remainingMs = app.sleepTimer.remainingMs();
+    const isRinging = app.timerBell.isRinging();
     const now = new Date();
     const deadline = app.sleepTimer.endsAt();
     const end = deadline === null ? null : new Date(deadline);
@@ -28,9 +29,10 @@ Page({
     const nextDay = end && end.toDateString() !== now.toDateString();
     this.setData({
       hasTimer: remainingMs !== null,
+      isRinging,
       currentHour: pad(now.getHours()),
       currentMinute: pad(now.getMinutes()),
-      endTimeText: end ? `${nextDay ? '次日 ' : ''}${pad(end.getHours())}:${pad(end.getMinutes())} 到期` : '已暂停 · 恢复后继续',
+      endTimeText: isRinging ? '关闭铃声' : end ? `${nextDay ? '次日 ' : ''}${pad(end.getHours())}:${pad(end.getMinutes())} 到期` : '已暂停 · 恢复后继续',
       state,
       sound: sounds.find((item) => item.id === state.soundId)
     });
@@ -52,6 +54,12 @@ Page({
     app.storage.recordRecent(id);
     this.setData({ pickerOpen: false });
   },
+  tapDeadline() {
+    if (app.timerBell.isRinging()) {
+      app.timerBell.stop();
+      this.render();
+    } else this.showTimer();
+  },
   showTimer() { this.setData({ timerOpen: true, pickerOpen: false }); },
   hideTimer() { this.setData({ timerOpen: false }); },
   timer(event) {
@@ -62,6 +70,7 @@ Page({
     this.render();
   },
   close() {
+    app.timerBell.stop();
     app.sleepTimer.schedule(0);
     app.player.pause();
     wx.navigateBack({ delta: 1 });
