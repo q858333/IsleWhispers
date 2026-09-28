@@ -1,2 +1,41 @@
-.page{min-height:100vh;box-sizing:border-box;padding:74rpx 36rpx 172rpx;background:linear-gradient(145deg,#d7a2a6,#fbf3dd 52%,#b8d4df);color:#332c36}.eyebrow,.title,.desc{display:block}.eyebrow{font-size:24rpx;letter-spacing:3rpx;color:rgba(51,44,54,.62)}.title{margin-top:12rpx;font-size:66rpx;font-weight:700}.desc{margin-top:16rpx;font-size:28rpx;line-height:1.6;color:rgba(51,44,54,.72)}.settings-list{margin-top:54rpx}.setting-card{min-height:124rpx;box-sizing:border-box;display:flex;align-items:center;gap:18rpx;width:100%;margin-bottom:18rpx;padding:22rpx;border-radius:28rpx;background:rgba(255,255,255,.74);color:#332c36;text-align:left;box-shadow:0 12rpx 30rpx rgba(102,75,83,.13)}.setting-icon{width:62rpx;height:62rpx;line-height:62rpx;border-radius:20rpx;background:#c4dff0;color:#34516a;text-align:center;font-size:32rpx;font-weight:700}.setting-copy{flex:1}.setting-title,.setting-detail{display:block}.setting-title{font-size:29rpx;font-weight:700}.setting-detail{margin-top:7rpx;font-size:22rpx;font-weight:400;color:rgba(51,44,54,.65)}.chevron{font-size:46rpx!important;font-weight:300!important;color:rgba(51,44,54,.38)!important}
-.page{padding-top:104rpx}
+.page{min-height:100vh;box-sizing:border-box;padding:74rpx 36rpx 172rpx;background:linear-gradient(145deg,#d7a2a6,#fbf3dd 52%,#b8d4df);color:#332c36}.eyebrow,.title,.desc{display:block}.eyebrow{font-size:24rpx;letter-spacing:3rpx;color:rgba(51,44,54,.62)}.title{margin-top:12rpx;font-size:66rpx;font-weight:700}.desc{margin-top:16rpx;font-size:28rpx;line-height:1.6;color:rgba(51,44,54,.72)}
+.settings-list { margin-top: 48rpx; }
+.setting-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  width: 100%;
+  min-height: 144rpx;
+  box-sizing: border-box;
+  margin-bottom: 20rpx;
+  padding: 28rpx;
+  border: 1rpx solid rgba(255, 255, 255, .8);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, .66);
+  color: #332c36;
+  text-align: left;
+  line-height: 1.4;
+  box-shadow: 0 4rpx 16rpx rgba(102, 75, 83, .04);
+}
+.setting-card-pressed { background: rgba(255, 255, 255, .9); }
+.setting-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 24rpx;
+  background: rgba(87, 112, 117, .08);
+}
+.line-icon { width: 40rpx; height: 40rpx; background-size: contain; background-repeat: no-repeat; }
+.setting-copy { flex: 1; min-width: 0; }
+.setting-title, .setting-detail { display: block; }
+.setting-title { font-size: 29rpx; font-weight: 600; }
+.setting-detail { margin-top: 8rpx; font-size: 23rpx; font-weight: 400; line-height: 1.5; color: rgba(51, 44, 54, .56); }
+.chevron { flex-shrink: 0; width: 12rpx; height: 12rpx; margin: 0 6rpx 0 4rpx; border-top: 2rpx solid rgba(51, 44, 54, .35); border-right: 2rpx solid rgba(51, 44, 54, .35); transform: rotate(45deg); }
+.page { padding-top: 104rpx; }
+.icon-contact { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23577075%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M21%2011.5a8.5%208.5%200%200%201-8.5%208.5H4l-1%201v-9.5A8.5%208.5%200%200%201%2011.5%203h1a8.5%208.5%200%200%201%208.5%208.5Z%22%2F%3E%3Cpath%20d%3D%22M8%209h8M8%2013h5%22%2F%3E%3C%2Fsvg%3E"); }
+.icon-about { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23577075%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cpath%20d%3D%22M12%2011v6M12%207v.2%22%2F%3E%3C%2Fsvg%3E"); }
+.icon-terms { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23577075%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M14%203H6a1%201%200%200%200-1%201v16a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1V8l-5-5Z%22%2F%3E%3Cpath%20d%3D%22M14%203v5h5M9%2012h6M9%2016h6%22%2F%3E%3C%2Fsvg%3E"); }
+.icon-privacy { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23577075%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%225%22%20y%3D%2210%22%20width%3D%2214%22%20height%3D%2211%22%20rx%3D%223%22%2F%3E%3Cpath%20d%3D%22M8%2010V7a4%204%200%200%201%208%200v3M12%2014v3%22%2F%3E%3C%2Fsvg%3E"); }
