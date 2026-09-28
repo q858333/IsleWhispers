@@ -1,1 +1,4 @@
-{ "navigationBarTitleText": "服务条款" }
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#F6F0E8"
+}

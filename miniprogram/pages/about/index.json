@@ -1,1 +1,4 @@
-{ "navigationBarTitleText": "关于我们" }
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#d7a2a6"
+}

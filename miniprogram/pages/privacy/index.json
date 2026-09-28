@@ -1,1 +1,4 @@
-{ "navigationBarTitleText": "隐私保护指引" }
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#F6F0E8"
+}

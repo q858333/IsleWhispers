@@ -1,1 +1,4 @@
-{ "navigationBarTitleText": "素材与授权" }
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#F6F0E8"
+}
