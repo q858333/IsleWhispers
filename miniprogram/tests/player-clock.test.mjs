@@ -10,7 +10,7 @@ function fixture(hour = 16, minute = 14) {
   let page;
   const bell = { ringing: false, isRinging() { return this.ringing; }, stop() { this.ringing = false; } };
   class ClockDate extends Date { constructor(...args) { super(...(args.length ? args : [now])); } }
-  vm.runInNewContext(source, { Date: ClockDate, clearInterval() {}, sounds: [{ id: 'tea' }], getApp: () => ({ sleepTimer: timer, timerBell: bell, player: { getState: () => ({ soundId: 'tea' }) } }), Page: p => { page = p; } });
+  vm.runInNewContext(source, { Date: ClockDate, clearInterval() {}, sounds: [{ id: 'tea' }], getApp: () => ({ sleepTimer: timer, timerBell: bell, storage: { getTimerBellEnabled: () => true }, player: { getState: () => ({ soundId: 'tea' }) } }), Page: p => { page = p; } });
   page.setData = d => Object.assign(page.data, d);
   return { timer, bell, page, advance(ms) { now += ms; } };
 }

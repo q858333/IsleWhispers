@@ -26,7 +26,7 @@ App({
     this.timerBell = createTimerBell(wx);
     this.sleepTimer = createSleepTimer({ now: Date.now }, () => {
       this.player.pause();
-      this.timerBell.play();
+      if (this.storage.getTimerBellEnabled()) this.timerBell.play();
     });
   },
   onShow() { this.sleepTimer.consumeExpiry(); }

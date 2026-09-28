@@ -4,7 +4,12 @@ export function createPlayer({ audioManager, storage, sounds, audioSource = { re
   if (storedSoundId && storedSoundId !== initialSoundId) storage.setSelectedSoundId(initialSoundId);
   let state = { soundId: initialSoundId, isPlaying: false, muted: storage.getMuted(), error: null };
   const listeners = new Set();
-  const publish = () => listeners.forEach((listener) => listener({ ...state }));
+  const snapshot = () => ({
+    ...state,
+    audioStatus: audioSource.getStatus?.(sounds.find((sound) => sound.id === state.soundId)) || 'idle'
+  });
+  const publish = () => listeners.forEach((listener) => listener(snapshot()));
+  audioSource.subscribe?.(publish);
   const soundFor = (id) => sounds.find((sound) => sound.id === id);
   let mutePausePending = false;
   const silence = () => {
@@ -49,7 +54,7 @@ export function createPlayer({ audioManager, storage, sounds, audioSource = { re
   audioManager.onStop(() => { state.isPlaying = false; publish(); });
   audioManager.onError((event) => { state.isPlaying = false; state.error = event?.errMsg || '音频播放失败'; publish(); });
   return {
-    getState: () => ({ ...state }), subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    getState: snapshot, subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     select(id) { if (!soundFor(id)) return; state.soundId = id; storage.setSelectedSoundId(id); if (state.isPlaying && !state.muted) load(); publish(); },
     play() { state.isPlaying = true; state.error = null; if (!state.muted) { if (loadedSoundId === state.soundId) audioManager.play(); else load(); } publish(); },
     pause() { audioManager.pause(); state.isPlaying = false; publish(); },

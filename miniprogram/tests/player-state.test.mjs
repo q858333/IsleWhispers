@@ -8,7 +8,7 @@ function fakeAudio() { return { play() { this.played = true; }, pause() { this.p
 test('播放中的切歌继续播放，暂停中的切歌保持暂停', () => {
   const player = createPlayer({ audioManager: fakeAudio(), storage, sounds });
   player.select('rain'); player.play(); player.select('wind');
-  assert.deepEqual(player.getState(), { soundId: 'wind', isPlaying: true, muted: false, error: null });
+  assert.deepEqual(player.getState(), { soundId: 'wind', isPlaying: true, muted: false, error: null, audioStatus: 'idle' });
   player.pause(); player.select('rain');
   assert.equal(player.getState().isPlaying, false);
 });

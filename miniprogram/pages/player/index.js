@@ -3,7 +3,7 @@ import { sounds } from '../../data/sounds';
 const app = getApp();
 
 Page({
-  data: { state: {}, sound: {}, hasTimer: false, isRinging: false, isDevelop: false, currentHour: '', currentMinute: '', endTimeText: '', pickerOpen: false, timerOpen: false, sounds },
+  data: { state: {}, sound: {}, hasTimer: false, isRinging: false, isDevelop: false, currentHour: '', currentMinute: '', endTimeText: '', pickerOpen: false, timerOpen: false, timerBellEnabled: true, sounds },
   onLoad() {
     const capsule = wx.getMenuButtonBoundingClientRect();
     const { envVersion } = wx.getAccountInfoSync().miniProgram;
@@ -60,7 +60,15 @@ Page({
       this.render();
     } else this.showTimer();
   },
-  showTimer() { this.setData({ timerOpen: true, pickerOpen: false }); },
+  showTimer() {
+    this.setData({ timerOpen: true, pickerOpen: false, timerBellEnabled: app.storage.getTimerBellEnabled() });
+  },
+  changeTimerBell(event) {
+    const enabled = event.detail.value === true;
+    app.storage.setTimerBellEnabled(enabled);
+    if (!enabled) app.timerBell.stop();
+    this.setData({ timerBellEnabled: enabled });
+  },
   hideTimer() { this.setData({ timerOpen: false }); },
   timer(event) {
     const { minutes, seconds } = event.currentTarget.dataset;

@@ -1,6 +1,7 @@
 const keys = {
   selectedSoundId: 'isleWhispers.selectedSoundId',
   muted: 'isleWhispers.muted',
+  timerBellEnabled: 'isleWhispers.timerBellEnabled',
   recentSoundIds: 'isleWhispers.recentSoundIds'
 };
 
@@ -18,6 +19,12 @@ export function createStorage(adapter) {
     },
     setMuted(muted) {
       adapter.setStorageSync(keys.muted, muted === true);
+    },
+    getTimerBellEnabled() {
+      return adapter.getStorageSync(keys.timerBellEnabled) !== false;
+    },
+    setTimerBellEnabled(enabled) {
+      adapter.setStorageSync(keys.timerBellEnabled, enabled === true);
     },
     getRecentSoundIds() {
       const ids = adapter.getStorageSync(keys.recentSoundIds);
